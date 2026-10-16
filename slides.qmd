@@ -1,0 +1,79 @@
+---
+title: "Brew & Bytes"
+subtitle: "What a year of transactions says"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    transition: fade
+    incremental: true
+    footer: "OMIS 681 Portfolio Project example"
+execute:
+  echo: false
+---
+
+## The question {background-color="#0E1016"}
+
+::: {.fragment}
+How do customer type, store, and time of day shape what Brew & Bytes sells, and at what price?
+:::
+::: {.fragment}
+One year, five stores, `r format(5634, big.mark = ",")` transaction lines.
+:::
+
+## One file, one command
+
+- The analysis lives in `.qmd` files.
+- Rendering runs every chunk and rebuilds every number and chart.
+- The web page, the PDF and these slides come from the same source.
+- Change the data, render again, and everything updates.
+
+## The morning rush
+
+```{r}
+#| fig-width: 10
+#| fig-height: 4.5
+library(tidyverse)
+cafe <- read_csv("data/cafe_transactions.csv", show_col_types = FALSE) |> filter(!is.na(unit_price))
+cafe |>
+  mutate(hour = as.integer(substr(as.character(time), 1, 2))) |>
+  ggplot(aes(x = hour, fill = customer_type)) +
+  geom_bar() +
+  facet_wrap(~store, nrow = 1)
+```
+
+## Price is set by the menu
+
+```{r}
+#| fig-width: 10
+#| fig-height: 4.5
+ggplot(cafe, aes(x = category, y = unit_price, fill = category)) +
+  geom_boxplot() +
+  facet_wrap(~customer_type)
+```
+
+## A live code slide
+
+```{r}
+#| echo: true
+cafe |>
+  group_by(store) |>
+  summarise(avg_price = mean(unit_price), lines = n()) |>
+  arrange(desc(avg_price))
+```
+
+## Slide features worth knowing
+
+- Press `S` for speaker notes, `O` for the overview, `F` for full screen.
+- `incremental: true` reveals bullets one at a time.
+- `{background-color="..."}` on a heading styles that one slide.
+- Change `theme: simple` to `theme: moon` and render: a different deck in one word.
+
+## What goes in your deck {background-color="#0E1016"}
+
+::: {.fragment}
+Your question, your three findings, your best chart, your recommendation.
+:::
+::: {.fragment}
+Built from the same pages as your site, so nothing is retyped.
+:::

@@ -1,0 +1,42 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "*.qmd"
+    - "!slides.qmd"
+    - "!quarto-guide.qmd"
+
+website:
+  title: "Olist ETA Prediction"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: quarto-guide.qmd
+        text: How a .qmd works
+      - href: data.qmd
+        text: Data
+      - href: eda.qmd
+        text: Exploration
+      - href: report.qmd
+        text: "One source, three outputs"
+      - href: slides.qmd
+        text: Slides
+      - href: github-setup.qmd
+        text: GitHub and Netlify
+    right:
+      - href: notes.qmd
+        text: Instructor notes
+
+format:
+  html:
+    theme: flatly
+    toc: true
+    code-fold: true
+    code-tools: true
+    smooth-scroll: true
+
+execute:
+  echo: true
+  warning: false
+  message: false

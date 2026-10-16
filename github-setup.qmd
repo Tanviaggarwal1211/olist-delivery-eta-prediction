@@ -1,0 +1,115 @@
+---
+title: "GitHub and Netlify: the correct setup"
+subtitle: "What every project must have before Milestone 1"
+---
+
+::: {.callout-note}
+## Instructor cue
+This page is the checklist you narrate. The long version with screenshots of every click is `SETUP_GUIDE.md` inside the project template. Students follow that one at home.
+:::
+
+## The chain, in one sentence
+
+You edit in **RStudio**, **Quarto** renders your pages into the `_site` folder, **Git** records a snapshot (a commit), **GitHub** stores your snapshots online, and **Netlify** publishes whatever is in `_site` every time you push.
+
+Nothing you did not push exists as far as grading is concerned.
+
+## What "correct" looks like
+
+1. **One repository, created from the class template**, named like something on a resume (`qsr-demand-analysis`, not `project681`).
+2. **Opened as an RStudio Project**: you double-click the `.Rproj` file, never a loose `.qmd`. That keeps the working directory right, so `data/your_file.csv` always resolves.
+3. **Dr. B (biagiopalese) added as a collaborator** under the repository's Settings. This is how milestones are graded.
+4. **The data file never in the repository.** The template's `.gitignore` keeps `data/` and every `.csv` out. If you see your CSV in the Git tab, stop and ask.
+5. **`_site` committed.** Netlify publishes that folder as-is, so it must be pushed after every render.
+6. **Netlify imported from GitHub**, publish directory `_site`, build command empty. From then on every push republishes.
+7. **A personal access token stored** (`usethis::create_github_token()` then `gitcreds::gitcreds_set()`), so RStudio can push without asking for a password every time.
+
+## How do you get there?
+
+Everything below is free. Do it once, in this order. The only software you need is R, RStudio and Git; nothing else. The click-by-click version with every screen is `SETUP_GUIDE.md` in your project template, and you are welcome to use AI tools to troubleshoot any step.
+
+### A. Accounts
+
+1. **GitHub account.** Go to https://github.com and sign up with your university email. Choose a username you would put on a resume; it will be visible on your published project.
+2. **Netlify account.** Go to https://app.netlify.com and choose **Sign up with GitHub**. That one button links the two accounts; do not create a separate email login.
+
+### B. Git on your computer
+
+3. **Check whether Git is already there before installing anything.** In RStudio, open the Terminal tab (next to the Console) and type `git --version`.
+   - **Mac:** if a version number appears, you are done. If instead a window offers to install the "command line developer tools", click Install and wait; that is Apple's own Git and the only thing you need. No Homebrew, no Xcode, no LaTeX.
+   - **Windows:** if a version number appears, you are done. If you see "not recognized", install Git for Windows from https://git-scm.com/download/win with the defaults, then restart RStudio.
+4. **Tell Git who you are.** In the Console:
+
+```r
+usethis::use_git_config(user.name = "Your Name", user.email = "you@students.niu.edu")
+```
+
+Use the same email as your GitHub account.
+
+### C. Your repository
+
+5. **Create it from the class template.** Open the template link in the Dr. B Learning Arena, click **Use this template**, then **Create a new repository**. Keep it Public and name it like a portfolio piece.
+6. **Open it in RStudio.** File, New Project, Version Control, Git, paste the repository's HTTPS address (green **Code** button on GitHub), Create Project. From now on you open the project by double-clicking its `.Rproj` file.
+7. **Store a personal access token.** GitHub does not accept your password from RStudio; it accepts a token. In the Console:
+
+```r
+usethis::create_github_token()
+```
+
+A GitHub page opens with the right options pre-selected; name the token, click **Generate token**, copy it. Then:
+
+```r
+gitcreds::gitcreds_set()
+```
+
+and paste the token when asked. Confirm with `usethis::git_sitrep()`. Tokens expire (30 days by default); when RStudio asks for a password again, repeat this step.
+
+8. **Add Dr. B as a collaborator.** On GitHub: repository **Settings**, **Collaborators**, **Add people**, enter `biagiopalese`. Required for grading.
+
+### D. Your site
+
+9. **Render, commit and push from the Terminal.** In RStudio's Terminal tab, run these four lines. They are the same on Mac and Windows:
+
+```bash
+quarto render
+git add -A
+git commit -m "first render of the site"
+git push
+```
+
+`quarto render` rebuilds every page into the `_site` folder; `git add -A` stages every changed file (the template's `.gitignore` keeps your data out even with `-A`); `git commit -m "..."` records the snapshot with a message; `git push` sends it to GitHub. Refresh the repository page: your files are there. The Git tab in RStudio does the same four things with buttons if you prefer.
+
+10. **Connect Netlify.** In Netlify: **Add new project**, **Import an existing project**, **GitHub**, pick your repository. Leave **Build command** empty, set **Publish directory** to `_site`, click **Deploy**. Rename the site under Project configuration, Site details, **Change site name**.
+11. **Check it.** Open the address Netlify shows. Every push from now on republishes your site automatically.
+
+### Additional resources
+
+- *Happy Git and GitHub for the useR* by Jenny Bryan: https://happygitwithr.com. Plain-language, written for R users, with chapters on tokens and on the four commands above.
+- Quarto's Netlify publishing guide: https://quarto.org/docs/publishing/netlify.html.
+- GitHub's getting-started docs: https://docs.github.com/en/get-started.
+- Your template's `SETUP_GUIDE.md`.
+
+## The rhythm
+
+Every working session ends the same way, in the Terminal:
+
+```bash
+quarto render
+git add -A
+git commit -m "what you changed, in a few words"
+git push
+```
+
+Push, and Netlify publishes. If you work on more than one computer, run `git pull` first so your copy is up to date. Every session, not the night before: the commit history is part of the evidence that the work is yours.
+
+## The four screenshots the pre-flight ticket asks for
+
+1. RStudio with a rendered page in the Viewer.
+2. Your GitHub profile.
+3. Your repository's Collaborators page with Dr. B on it.
+4. Your live Netlify site with the address visible.
+
+::: {.callout-important}
+## The two rules that protect you
+Data never goes in the repository, and nothing gets typed into a sentence that a code chunk could compute. Follow those two and most of what goes wrong cannot go wrong. And `git add -A` is safe only because of the template's `.gitignore`: a repository built from scratch without it would push your data on the first add.
+:::

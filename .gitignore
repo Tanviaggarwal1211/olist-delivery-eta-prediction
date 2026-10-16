@@ -1,0 +1,10 @@
+data/
+*.csv
+*.rds
+.Rproj.user/
+.quarto/
+.Rhistory
+.DS_Store
+
+/.quarto/
+**/*.quarto_ipynb

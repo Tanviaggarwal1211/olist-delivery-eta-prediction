@@ -1,0 +1,23 @@
+---
+title: "Home"
+---
+
+## The business question
+
+**How do delivery time, shipping cost, and product characteristics shape the customer experience at Olist, and when do orders miss the delivery promise?**
+
+## Why this matters
+
+Olist is a Brazilian online marketplace that connects small sellers to customers across the country. Delivery speed and shipping cost are central to customer satisfaction, and they are set by logistics: where the seller and customer are, how heavy the item is, and what category it belongs to. About two years of order data (2016-2018) can show where the delivery promise holds, where it breaks, and what drives shipping costs.
+
+Use the navbar: **Data** and **Exploration** are the analysis, covering the order-level dataset (about 110K item rows), the calculated fields I built (delivery status, total cost, time-of-day features), and the plots that compare delivery time, freight, weight, and category. The remaining pages cover the file format, the presentation slides, and the GitHub and Netlify setup.
+
+## What I found so far
+
+- About 90% of orders arrive earlier than estimated, so Olist's delivery estimates are conservative.
+- Purchase timing (weekday vs. weekend, time of day) barely changes delivery outcomes.
+- Location and product type matter more: delivery time varies by customer state and by category, and heavier items cost more to ship.
+
+## About the analyst
+
+This project was written by Tanvi Aggarwal on the Olist e-commerce dataset. [GitHub profile](https://github.com/your-username)

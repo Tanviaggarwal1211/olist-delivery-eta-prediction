@@ -1,0 +1,100 @@
+---
+title: "How a .qmd works"
+subtitle: "The building blocks of every page on this site"
+---
+
+::: {.callout-note}
+## Instructor cue
+Keep the `.qmd` source open on the left and this rendered page on the right. Scroll both together. Students do not need R running to follow.
+:::
+
+A Quarto document (`.qmd`) mixes three things in one file:
+
+1. **A YAML header**: configuration at the very top, between two lines of `---`.
+2. **Markdown prose**: headings, paragraphs, lists, links, images.
+3. **Code chunks**: R code that runs when you render, with its output placed right where the chunk sits.
+
+Rendering turns the source into an output: a web page, a PDF, a slide deck. Same source, different output, one click.
+
+## 1. The YAML header
+
+The header of this very page looks like this:
+
+```yaml
+---
+title: "How a .qmd works"
+subtitle: "The building blocks of every page on this site"
+---
+```
+
+Everything else about how the page looks (theme, table of contents, folded code) comes from `_quarto.yml`, the project-wide configuration, so you set it once and every page inherits it.
+
+::: {.callout-tip}
+## Live experiment
+Change `title:` in the source, save, render. The page title updates. That is the entire feedback loop of Quarto: edit, render, look.
+:::
+
+## 2. Markdown prose
+
+Plain text is a paragraph. A line starting with `##` is a section heading (and appears in the table of contents on the right). `**bold**`, `*italic*`, `` `code` ``, and lists:
+
+- a bullet
+- another bullet
+
+work the way you expect. You are writing a document, not a program.
+
+## 3. Code chunks
+
+A chunk is fenced by three backticks with `{r}` on the opening fence:
+
+```{r}
+library(tidyverse)
+cafe <- read_csv("data/cafe_transactions.csv", show_col_types = FALSE)
+nrow(cafe)
+```
+
+The code ran and its result is printed below it. Chunk options start with `#|` on the first lines of the chunk and control things like whether the code shows (`echo`), whether it runs (`eval`), and figure size:
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3.5
+ggplot(cafe, aes(x = unit_price)) + geom_histogram()
+```
+
+::: {.callout-important}
+## Why chunks matter for your project
+Your Milestone 1 numbers must be executed, not typed. A chunk that prints `nrow(cafe)` can never drift from the data. A number you typed into a sentence can.
+:::
+
+## 4. Inline R: numbers that never drift
+
+You can put R inside a sentence. This sentence is computed: the dataset has `r nrow(cafe)` transactions across `r n_distinct(cafe$store)` stores, and `r sum(is.na(cafe$unit_price))` rows have a missing price.
+
+The source of that sentence is:
+
+```markdown
+the dataset has `r knitr::inline_expr("nrow(cafe)")` transactions
+```
+
+If the data changes, the sentence changes. That is what "reproducible" means in practice.
+
+## 5. Callouts
+
+The colored boxes on this page are callouts. They are one line of markup:
+
+```markdown
+::: {.callout-tip}
+## A title
+Some text.
+:::
+```
+
+Five kinds exist: `note`, `tip`, `important`, `warning`, `caution`. Use them for the so-what sentence under a chart, or to flag a data problem you found.
+
+## 6. Folded code
+
+Every chunk on this site is folded by default (click "Code" to open it). That comes from one line in `_quarto.yml`: `code-fold: true`. Your published project should do the same: the story reads in front, the code is one click away for whoever wants to check it.
+
+## What you now know
+
+You can read any `.qmd` on this site. The Data and Exploration pages are just more of the same three ingredients, arranged into an analysis.

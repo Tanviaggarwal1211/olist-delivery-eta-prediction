@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Data – Olist ETA Prediction</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-9d96f532d65220ca877c0304385df42f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">Olist ETA Prediction</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./quarto-guide.qmd"> 
+<span class="menu-text">How a .qmd works</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="./data.html" aria-current="page"> 
+<span class="menu-text">Data</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./eda.html"> 
+<span class="menu-text">Exploration</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./report.html"> 
+<span class="menu-text">One source, three outputs</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./slides.qmd"> 
+<span class="menu-text">Slides</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./github-setup.html"> 
+<span class="menu-text">GitHub and Netlify</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./notes.html"> 
+<span class="menu-text">Instructor notes</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-dataset" id="toc-the-dataset" class="nav-link active" data-scroll-target="#the-dataset">The dataset</a></li>
+  <li><a href="#data-dictionary" id="toc-data-dictionary" class="nav-link" data-scroll-target="#data-dictionary">Data dictionary</a></li>
+  <li><a href="#master-data-creation" id="toc-master-data-creation" class="nav-link" data-scroll-target="#master-data-creation">Master Data Creation</a>
+  <ul class="collapse">
+  <li><a href="#missing-values" id="toc-missing-values" class="nav-link" data-scroll-target="#missing-values">Missing values</a></li>
+  </ul></li>
+  <li><a href="#renaming-the-column-names" id="toc-renaming-the-column-names" class="nav-link" data-scroll-target="#renaming-the-column-names">Renaming the column names</a></li>
+  <li><a href="#finding-missing-data-in-delivery-days" id="toc-finding-missing-data-in-delivery-days" class="nav-link" data-scroll-target="#finding-missing-data-in-delivery-days">Finding Missing data in Delivery days</a></li>
+  <li><a href="#removing-nulls-and-imputing-numeric-values-with-median" id="toc-removing-nulls-and-imputing-numeric-values-with-median" class="nav-link" data-scroll-target="#removing-nulls-and-imputing-numeric-values-with-median">Removing nulls and imputing numeric values with median</a>
+  <ul class="collapse">
+  <li><a href="#exploratory-analysis-of-specific-features-like---delivery-daystarget-variable-order_id-order_stausstate" id="toc-exploratory-analysis-of-specific-features-like---delivery-daystarget-variable-order_id-order_stausstate" class="nav-link" data-scroll-target="#exploratory-analysis-of-specific-features-like---delivery-daystarget-variable-order_id-order_stausstate">Exploratory Analysis of specific features like - delivery days(target variable), order_id, order_staus,state</a></li>
+  <li><a href="#average-number-of-delivery-days" id="toc-average-number-of-delivery-days" class="nav-link" data-scroll-target="#average-number-of-delivery-days">Average number of delivery days</a></li>
+  <li><a href="#average-and-max-number-of-delivery-days-for-each-day-of-the-week" id="toc-average-and-max-number-of-delivery-days-for-each-day-of-the-week" class="nav-link" data-scroll-target="#average-and-max-number-of-delivery-days-for-each-day-of-the-week">Average and max number of delivery days for each day of the week</a></li>
+  <li><a href="#calculate-min.-and-max-of-purchase-year-monthby-combining-year-and-month-as-1-column" id="toc-calculate-min.-and-max-of-purchase-year-monthby-combining-year-and-month-as-1-column" class="nav-link" data-scroll-target="#calculate-min.-and-max-of-purchase-year-monthby-combining-year-and-month-as-1-column">Calculate min. and max of purchase year month(by combining year and month as 1 column)</a></li>
+  <li><a href="#total-number-of-orders" id="toc-total-number-of-orders" class="nav-link" data-scroll-target="#total-number-of-orders">Total number of orders</a></li>
+  <li><a href="#total-number-of-orders-placed-for-each-day-of-the-week" id="toc-total-number-of-orders-placed-for-each-day-of-the-week" class="nav-link" data-scroll-target="#total-number-of-orders-placed-for-each-day-of-the-week">Total number of orders placed for each day of the week</a></li>
+  <li><a href="#total-number-of-order-status" id="toc-total-number-of-order-status" class="nav-link" data-scroll-target="#total-number-of-order-status">Total number of order status</a></li>
+  <li><a href="#mean-median-min-and-max-number-of-delivery-days-for-each-seller-state" id="toc-mean-median-min-and-max-number-of-delivery-days-for-each-seller-state" class="nav-link" data-scroll-target="#mean-median-min-and-max-number-of-delivery-days-for-each-seller-state">Mean, median, min and max number of delivery days for each seller state</a></li>
+  <li><a href="#writing-the-final-dataset" id="toc-writing-the-final-dataset" class="nav-link" data-scroll-target="#writing-the-final-dataset">Writing the final dataset</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Data</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># setwd("/Users/tanvijain/Olist_prediction")</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># getwd()</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>customers <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/customers.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>category_translation <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/category_translation.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>order_items <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/order_items.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>orders <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/orders.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>products <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/products.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>sellers <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/sellers.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="the-dataset" class="level2">
+<h2 class="anchored" data-anchor-id="the-dataset">The dataset</h2>
+<p>One row is one order at Olist website : one order, its customer, its order status, and its delivery days. The file holds 99441 rows and 11 columns, covering 99441 orders and 99441 customers.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(customers)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 99,441
+Columns: 5
+$ customer_id              &lt;chr&gt; "06b8999e2fba1a1fbc88172c00ba8bc7", "18955e83…
+$ customer_unique_id       &lt;chr&gt; "861eff4711a542e4b93843c6dd7febb0", "290c77bc…
+$ customer_zip_code_prefix &lt;dbl&gt; 14409, 9790, 1151, 8775, 13056, 89254, 4534, …
+$ customer_city            &lt;chr&gt; "franca", "sao bernardo do campo", "sao paulo…
+$ customer_state           &lt;chr&gt; "SP", "SP", "SP", "SP", "SP", "SC", "SP", "MG…</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(category_translation)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 71
+Columns: 2
+$ product_category_name         &lt;chr&gt; "beleza_saude", "informatica_acessorios"…
+$ product_category_name_english &lt;chr&gt; "health_beauty", "computers_accessories"…</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(order_items)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 112,650
+Columns: 7
+$ order_id            &lt;chr&gt; "00010242fe8c5a6d1ba2dd792cb16214", "00018f77f2f03…
+$ order_item_id       &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1,…
+$ product_id          &lt;chr&gt; "4244733e06e7ecb4970a6e2683c13e61", "e5f2d52b80218…
+$ seller_id           &lt;chr&gt; "48436dade18ac8b2bce089ec2a041202", "dd7ddc04e1b6c…
+$ shipping_limit_date &lt;dttm&gt; 2017-09-19 09:45:35, 2017-05-03 11:05:13, 2018-01…
+$ price               &lt;dbl&gt; 58.90, 239.90, 199.00, 12.99, 199.90, 21.90, 19.90…
+$ freight_value       &lt;dbl&gt; 13.29, 19.93, 17.87, 12.79, 18.14, 12.69, 11.85, 7…</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(orders)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 99,441
+Columns: 11
+$ order_id                      &lt;chr&gt; "e481f51cbdc54678b7cc49136f2d6af7", "53c…
+$ customer_id                   &lt;chr&gt; "9ef432eb6251297304e76186b10a928d", "b08…
+$ order_status                  &lt;chr&gt; "delivered", "delivered", "delivered", "…
+$ order_purchase_timestamp      &lt;dttm&gt; 2017-10-02 10:56:33, 2018-07-24 20:41:3…
+$ purchase_year                 &lt;dbl&gt; 2017, 2018, 2018, 2017, 2018, 2017, 2017…
+$ purchase_month                &lt;dbl&gt; 10, 7, 8, 11, 2, 7, 4, 5, 1, 7, 5, 7, 6,…
+$ purchase_day_of_week          &lt;chr&gt; "Monday", "Tuesday", "Wednesday", "Satur…
+$ order_delivered_customer_date &lt;dttm&gt; 2017-10-10 21:25:13, 2018-08-07 15:27:4…
+$ order_estimated_delivery_date &lt;dttm&gt; 2017-10-18, 2018-08-13, 2018-09-04, 201…
+$ delivery_days                 &lt;dbl&gt; 8, 13, 9, 13, 2, 16, NA, 9, 9, 18, 12, 5…
+$ estimated_days                &lt;dbl&gt; 15, 19, 26, 26, 12, 22, 27, 21, 41, 24, …</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(products)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 32,951
+Columns: 9
+$ product_id                 &lt;chr&gt; "1e9e8ef04dbcff4541ed26657ea517e5", "3aa071…
+$ product_category_name      &lt;chr&gt; "perfumaria", "artes", "esporte_lazer", "be…
+$ product_name_lenght        &lt;dbl&gt; 40, 44, 46, 27, 37, 60, 56, 56, 57, 36, 54,…
+$ product_description_lenght &lt;dbl&gt; 287, 276, 250, 261, 402, 745, 1272, 184, 16…
+$ product_photos_qty         &lt;dbl&gt; 1, 1, 1, 1, 4, 1, 4, 2, 1, 1, 1, 4, 3, 2, 4…
+$ product_weight_g           &lt;dbl&gt; 225, 1000, 154, 371, 625, 200, 18350, 900, …
+$ product_length_cm          &lt;dbl&gt; 16, 30, 18, 26, 20, 38, 70, 40, 27, 17, 16,…
+$ product_height_cm          &lt;dbl&gt; 10, 18, 9, 4, 17, 5, 24, 8, 13, 10, 10, 19,…
+$ product_width_cm           &lt;dbl&gt; 14, 20, 15, 26, 13, 11, 44, 40, 17, 12, 16,…</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(sellers)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 3,095
+Columns: 4
+$ seller_id              &lt;chr&gt; "3442f8959a84dea7ee197c632cb2df15", "d1b65fc7de…
+$ seller_zip_code_prefix &lt;dbl&gt; 13023, 13844, 20031, 4195, 12914, 20920, 55325,…
+$ seller_city            &lt;chr&gt; "campinas", "mogi guacu", "rio de janeiro", "sa…
+$ seller_state           &lt;chr&gt; "SP", "SP", "RJ", "SP", "SP", "RJ", "PE", "SP",…</code></pre>
+</div>
+</div>
+</section>
+<section id="data-dictionary" class="level2">
+<h2 class="anchored" data-anchor-id="data-dictionary">Data dictionary</h2>
+<p>Customers Table | Column | Type | Meaning | |—|—|—| customer_id text Id per order, links orders to customers customer_unique_id text Permanent id of a real customer customer_zip_code_prefix number First 5 digits of zip code customer_city text Customer’s city customer_state text Two-letter state code</p>
+<p>Order_items Table | Column | Type | Meaning | |—|—|—| order_id text Id of the order order_item_id integer Item position within the order product_id text Id of the product seller_id text Id of the seller shipping_limit_date datetime Seller’s deadline to ship the item price number Item price in BRL freight_value number Shipping cost in BRL</p>
+<p>Category_translation Table | Column | Type | Meaning | |—|—|—| product_category_name text Category name in Portuguese product_category_name_english text Category name in English</p>
+<p>Orders Table | Column | Type | Meaning | |—|—|—| order_id text Id of the order order_item_id integer Item position in the order product_id text Id of the product seller_id text Id of the seller shipping_limit_date datetime Seller’s shipping deadline price number Item price in BRL freight_value number Shipping cost</p>
+<p>Products Table | Column | Type | Meaning | |—|—|—| product_id text Id of the product product_category_name text Product category in Portuguese product_name_lenght number Characters in the product name product_description_lenght number Characters in the product description product_photos_qty number Number of published photos product_weight_g number Weight in grams product_length_cm number Length in cm product_height_cm number Height in cm product_width_cm number Width in cm</p>
+<p>sellers Table | Column | Type | Meaning | |—|—|—| seller_id text Id of the seller seller_zip_code_prefix number First 5 digits of zip code seller_city text Seller’s city seller_state text Two-letter state code</p>
+</section>
+<section id="master-data-creation" class="level2">
+<h2 class="anchored" data-anchor-id="master-data-creation">Master Data Creation</h2>
+<p>Joining the 7 datasets to create one master data.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> order_items <span class="sc">%&gt;%</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(orders,               <span class="at">by =</span> <span class="st">"order_id"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(customers,            <span class="at">by =</span> <span class="st">"customer_id"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(products,             <span class="at">by =</span> <span class="st">"product_id"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(category_translation, <span class="at">by =</span> <span class="st">"product_category_name"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sellers,              <span class="at">by =</span> <span class="st">"seller_id"</span>)</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(order_items)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 112650</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(df_master)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 112650</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_master)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 112,650
+Columns: 33
+$ order_id                      &lt;chr&gt; "00010242fe8c5a6d1ba2dd792cb16214", "000…
+$ order_item_id                 &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1…
+$ product_id                    &lt;chr&gt; "4244733e06e7ecb4970a6e2683c13e61", "e5f…
+$ seller_id                     &lt;chr&gt; "48436dade18ac8b2bce089ec2a041202", "dd7…
+$ shipping_limit_date           &lt;dttm&gt; 2017-09-19 09:45:35, 2017-05-03 11:05:1…
+$ price                         &lt;dbl&gt; 58.90, 239.90, 199.00, 12.99, 199.90, 21…
+$ freight_value                 &lt;dbl&gt; 13.29, 19.93, 17.87, 12.79, 18.14, 12.69…
+$ customer_id                   &lt;chr&gt; "3ce436f183e68e07877b285a838db11a", "f6d…
+$ order_status                  &lt;chr&gt; "delivered", "delivered", "delivered", "…
+$ order_purchase_timestamp      &lt;dttm&gt; 2017-09-13 08:59:02, 2017-04-26 10:53:0…
+$ purchase_year                 &lt;dbl&gt; 2017, 2017, 2018, 2018, 2017, 2017, 2017…
+$ purchase_month                &lt;dbl&gt; 9, 4, 1, 8, 2, 5, 12, 7, 3, 7, 3, 7, 7, …
+$ purchase_day_of_week          &lt;chr&gt; "Wednesday", "Wednesday", "Sunday", "Wed…
+$ order_delivered_customer_date &lt;dttm&gt; 2017-09-20 23:43:48, 2017-05-12 16:04:2…
+$ order_estimated_delivery_date &lt;dttm&gt; 2017-09-29, 2017-05-15, 2018-02-05, 201…
+$ delivery_days                 &lt;dbl&gt; 7, 16, 7, 6, 25, 6, 8, 5, 9, 2, 4, 10, 6…
+$ estimated_days                &lt;dbl&gt; 15, 18, 21, 11, 40, 21, 24, 20, 9, 20, 1…
+$ customer_unique_id            &lt;chr&gt; "871766c5855e863f6eccc05f988b23cb", "eb2…
+$ customer_zip_code_prefix      &lt;dbl&gt; 28013, 15775, 35661, 12952, 13226, 38017…
+$ customer_city                 &lt;chr&gt; "campos dos goytacazes", "santa fe do su…
+$ customer_state                &lt;chr&gt; "RJ", "SP", "MG", "SP", "SP", "MG", "SP"…
+$ product_category_name         &lt;chr&gt; "cool_stuff", "pet_shop", "moveis_decora…
+$ product_name_lenght           &lt;dbl&gt; 58, 56, 59, 42, 59, 36, 52, 39, 59, 52, …
+$ product_description_lenght    &lt;dbl&gt; 598, 239, 695, 480, 409, 558, 815, 1310,…
+$ product_photos_qty            &lt;dbl&gt; 4, 2, 2, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 2…
+$ product_weight_g              &lt;dbl&gt; 650, 30000, 3050, 200, 3750, 450, 200, 1…
+$ product_length_cm             &lt;dbl&gt; 28, 50, 33, 16, 35, 24, 27, 35, 30, 29, …
+$ product_height_cm             &lt;dbl&gt; 9, 30, 13, 10, 40, 8, 5, 75, 12, 3, 25, …
+$ product_width_cm              &lt;dbl&gt; 14, 40, 33, 15, 30, 15, 20, 45, 16, 21, …
+$ product_category_name_english &lt;chr&gt; "cool_stuff", "pet_shop", "furniture_dec…
+$ seller_zip_code_prefix        &lt;dbl&gt; 27277, 3471, 37564, 14403, 87900, 14091,…
+$ seller_city                   &lt;chr&gt; "volta redonda", "sao paulo", "borda da …
+$ seller_state                  &lt;chr&gt; "SP", "SP", "MG", "SP", "PR", "SP", "SP"…</code></pre>
+</div>
+</div>
+<section id="missing-values" class="level3">
+<h3 class="anchored" data-anchor-id="missing-values">Missing values</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(df_master))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                     order_id                 order_item_id 
+                            0                             0 
+                   product_id                     seller_id 
+                            0                             0 
+          shipping_limit_date                         price 
+                            0                             0 
+                freight_value                   customer_id 
+                            0                             0 
+                 order_status      order_purchase_timestamp 
+                            0                             0 
+                purchase_year                purchase_month 
+                            0                             0 
+         purchase_day_of_week order_delivered_customer_date 
+                            0                          2454 
+order_estimated_delivery_date                 delivery_days 
+                            0                          2454 
+               estimated_days            customer_unique_id 
+                            0                             0 
+     customer_zip_code_prefix                 customer_city 
+                            0                             0 
+               customer_state         product_category_name 
+                            0                          1603 
+          product_name_lenght    product_description_lenght 
+                         1603                          1603 
+           product_photos_qty              product_weight_g 
+                         1603                            18 
+            product_length_cm             product_height_cm 
+                           18                            18 
+             product_width_cm product_category_name_english 
+                           18                          1627 
+       seller_zip_code_prefix                   seller_city 
+                            0                             0 
+                 seller_state 
+                            0 </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="renaming-the-column-names" class="level2">
+<h2 class="anchored" data-anchor-id="renaming-the-column-names">Renaming the column names</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">product_name_length=</span> product_name_lenght,</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">product_description_length=</span> product_description_lenght)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="finding-missing-data-in-delivery-days" class="level2">
+<h2 class="anchored" data-anchor-id="finding-missing-data-in-delivery-days">Finding Missing data in Delivery days</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span> <span class="fu">summarise</span>(<span class="at">missing_delivery_days =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(delivery_days)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 1
+  missing_delivery_days
+                  &lt;int&gt;
+1                  2454</code></pre>
+</div>
+</div>
+<p>2454 rows have no delivery days. They cannot contribute to any customer delivered date, so they are dropped. Rows before: 112650.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(delivery_days))</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(df_master)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 110196</code></pre>
+</div>
+</div>
+<p>Rows after: 110196.</p>
+</section>
+<section id="removing-nulls-and-imputing-numeric-values-with-median" class="level2">
+<h2 class="anchored" data-anchor-id="removing-nulls-and-imputing-numeric-values-with-median">Removing nulls and imputing numeric values with median</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Text columns</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_category_name =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_category_name), <span class="st">"unknown"</span>, product_category_name),</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_category_name_english =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_category_name_english),</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>                                            product_category_name,</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>                                            product_category_name_english),</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Numeric columns</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_name_length        =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_name_length), <span class="fu">median</span>(product_name_length, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_name_length),</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_description_length =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_description_length), <span class="fu">median</span>(product_description_length, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_description_length),</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_photos_qty         =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_photos_qty), <span class="fu">median</span>(product_photos_qty, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_photos_qty),</span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_weight_g           =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_weight_g), <span class="fu">median</span>(product_weight_g, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_weight_g),</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_length_cm          =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_length_cm), <span class="fu">median</span>(product_length_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_length_cm),</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_height_cm          =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_height_cm), <span class="fu">median</span>(product_height_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_height_cm),</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_width_cm           =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_width_cm), <span class="fu">median</span>(product_width_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_width_cm)</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(df_master))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                     order_id                 order_item_id 
+                            0                             0 
+                   product_id                     seller_id 
+                            0                             0 
+          shipping_limit_date                         price 
+                            0                             0 
+                freight_value                   customer_id 
+                            0                             0 
+                 order_status      order_purchase_timestamp 
+                            0                             0 
+                purchase_year                purchase_month 
+                            0                             0 
+         purchase_day_of_week order_delivered_customer_date 
+                            0                             0 
+order_estimated_delivery_date                 delivery_days 
+                            0                             0 
+               estimated_days            customer_unique_id 
+                            0                             0 
+     customer_zip_code_prefix                 customer_city 
+                            0                             0 
+               customer_state         product_category_name 
+                            0                             0 
+          product_name_length    product_description_length 
+                            0                             0 
+           product_photos_qty              product_weight_g 
+                            0                             0 
+            product_length_cm             product_height_cm 
+                            0                             0 
+             product_width_cm product_category_name_english 
+                            0                             0 
+       seller_zip_code_prefix                   seller_city 
+                            0                             0 
+                 seller_state 
+                            0 </code></pre>
+</div>
+</div>
+<section id="exploratory-analysis-of-specific-features-like---delivery-daystarget-variable-order_id-order_stausstate" class="level3">
+<h3 class="anchored" data-anchor-id="exploratory-analysis-of-specific-features-like---delivery-daystarget-variable-order_id-order_stausstate">Exploratory Analysis of specific features like - delivery days(target variable), order_id, order_staus,state</h3>
+</section>
+<section id="average-number-of-delivery-days" class="level3">
+<h3 class="anchored" data-anchor-id="average-number-of-delivery-days">Average number of delivery days</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">avg_delivery_days =</span> <span class="fu">mean</span>(delivery_days))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 1
+  avg_delivery_days
+              &lt;dbl&gt;
+1              12.0</code></pre>
+</div>
+</div>
+<p>On an average, Olist takes around 12 days to deliver its orders across all types.</p>
+</section>
+<section id="average-and-max-number-of-delivery-days-for-each-day-of-the-week" class="level3">
+<h3 class="anchored" data-anchor-id="average-and-max-number-of-delivery-days-for-each-day-of-the-week">Average and max number of delivery days for each day of the week</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(purchase_day_of_week) <span class="sc">|&gt;</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">avg_delivery_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>           <span class="at">max_delivery_days =</span> <span class="fu">max</span>(delivery_days))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 7 × 3
+  purchase_day_of_week avg_delivery_days max_delivery_days
+  &lt;chr&gt;                            &lt;dbl&gt;             &lt;dbl&gt;
+1 Friday                            13.0               208
+2 Monday                            11.5               189
+3 Saturday                          12.8               165
+4 Sunday                            11.4               141
+5 Thursday                          12.2               194
+6 Tuesday                           11.5               209
+7 Wednesday                         11.9               194</code></pre>
+</div>
+</div>
+<p>The average delivery days are roughly similar for different days of purchase.</p>
+</section>
+<section id="calculate-min.-and-max-of-purchase-year-monthby-combining-year-and-month-as-1-column" class="level3">
+<h3 class="anchored" data-anchor-id="calculate-min.-and-max-of-purchase-year-monthby-combining-year-and-month-as-1-column">Calculate min. and max of purchase year month(by combining year and month as 1 column)</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">purchase_year_month =</span> <span class="fu">make_date</span>(purchase_year, purchase_month, <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">min_purchase_date =</span> <span class="fu">min</span>(purchase_year_month),</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">max_purchase_date =</span> <span class="fu">max</span>(purchase_year_month))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 2
+  min_purchase_date max_purchase_date
+  &lt;date&gt;            &lt;date&gt;           
+1 2016-09-01        2018-08-01       </code></pre>
+</div>
+</div>
+</section>
+<section id="total-number-of-orders" class="level3">
+<h3 class="anchored" data-anchor-id="total-number-of-orders">Total number of orders</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">num_orders =</span> <span class="fu">n_distinct</span>(order_id))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 1
+  num_orders
+       &lt;int&gt;
+1      96476</code></pre>
+</div>
+</div>
+<p>There are 96476 orders placed in 2 years</p>
+</section>
+<section id="total-number-of-orders-placed-for-each-day-of-the-week" class="level3">
+<h3 class="anchored" data-anchor-id="total-number-of-orders-placed-for-each-day-of-the-week">Total number of orders placed for each day of the week</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(purchase_day_of_week) <span class="sc">|&gt;</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">num_orders =</span> <span class="fu">n_distinct</span>(order_id))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 7 × 2
+  purchase_day_of_week num_orders
+  &lt;chr&gt;                     &lt;int&gt;
+1 Friday                    13685
+2 Monday                    15703
+3 Saturday                  10556
+4 Sunday                    11634
+5 Thursday                  14322
+6 Tuesday                   15502
+7 Wednesday                 15074</code></pre>
+</div>
+</div>
+<p>Order placed on weekends are less as compared to orders placed on the week days</p>
+</section>
+<section id="total-number-of-order-status" class="level3">
+<h3 class="anchored" data-anchor-id="total-number-of-order-status">Total number of order status</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(order_status, <span class="at">name =</span> <span class="st">"num_orders"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 2 × 2
+  order_status num_orders
+  &lt;chr&gt;             &lt;int&gt;
+1 canceled              7
+2 delivered        110189</code></pre>
+</div>
+</div>
+<p>110,189 orders were delivered and only 7 were canceled, so the cancellation rate is negligible.</p>
+</section>
+<section id="mean-median-min-and-max-number-of-delivery-days-for-each-seller-state" class="level3">
+<h3 class="anchored" data-anchor-id="mean-median-min-and-max-number-of-delivery-days-for-each-seller-state">Mean, median, min and max number of delivery days for each seller state</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(seller_state) <span class="sc">|&gt;</span></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">avg_delivery_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>           <span class="at">median_delivery_days =</span> <span class="fu">median</span>(delivery_days),</span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>           <span class="at">min_delivery_days =</span> <span class="fu">min</span>(delivery_days),</span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>           <span class="at">max_delivery_days =</span> <span class="fu">max</span>(delivery_days),</span>
+<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a>           <span class="at">sd_delivery_days =</span> <span class="fu">sd</span>(delivery_days),</span>
+<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a>           <span class="at">num_orders =</span> <span class="fu">n_distinct</span>(order_id))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 22 × 7
+   seller_state avg_delivery_days median_delivery_days min_delivery_days
+   &lt;chr&gt;                    &lt;dbl&gt;                &lt;dbl&gt;             &lt;dbl&gt;
+ 1 AM                        47.3                 29                  23
+ 2 BA                        13.4                 11                   2
+ 3 CE                        17.4                 14                   2
+ 4 DF                        12.1                 10                   1
+ 5 ES                        12.4                 11                   2
+ 6 GO                        12.4                 11                   1
+ 7 MA                        17.3                 15                   1
+ 8 MG                        12.3                 10                   0
+ 9 MS                        11.9                 10.5                 3
+10 MT                        14.3                 13                   6
+# ℹ 12 more rows
+# ℹ 3 more variables: max_delivery_days &lt;dbl&gt;, sd_delivery_days &lt;dbl&gt;,
+#   num_orders &lt;int&gt;</code></pre>
+</div>
+</div>
+<p>From the above results we can see that for state Amazonas - the average delivery days are much higher (47 days) as compared to the other states. For rest of the states, average number of delivery days ranges between 11 - 17 days</p>
+<p>Also total numbers of order in state Sao Paulo is the highest.</p>
+</section>
+<section id="writing-the-final-dataset" class="level3">
+<h3 class="anchored" data-anchor-id="writing-the-final-dataset">Writing the final dataset</h3>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Data"</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="co">#| # Importing libraries and setting up working directory</span></span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="co"># setwd("/Users/tanvijain/Olist_prediction")</span></span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a><span class="co"># getwd()</span></span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a>customers <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/customers.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb45-19"><a href="#cb45-19" aria-hidden="true" tabindex="-1"></a>category_translation <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/category_translation.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb45-20"><a href="#cb45-20" aria-hidden="true" tabindex="-1"></a>order_items <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/order_items.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb45-21"><a href="#cb45-21" aria-hidden="true" tabindex="-1"></a>orders <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/orders.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb45-22"><a href="#cb45-22" aria-hidden="true" tabindex="-1"></a>products <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/products.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb45-23"><a href="#cb45-23" aria-hidden="true" tabindex="-1"></a>sellers <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/sellers.csv"</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb45-24"><a href="#cb45-24" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-25"><a href="#cb45-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-26"><a href="#cb45-26" aria-hidden="true" tabindex="-1"></a><span class="fu">## The dataset</span></span>
+<span id="cb45-27"><a href="#cb45-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-28"><a href="#cb45-28" aria-hidden="true" tabindex="-1"></a>One row is one order at Olist website : one order, its customer, its order status, and its delivery days. The file holds <span class="in">`r nrow(orders)`</span> rows and <span class="in">`r ncol(orders)`</span> columns, covering <span class="in">`r n_distinct(orders$order_id)`</span> orders and <span class="in">`r n_distinct(orders$customer_id)`</span> customers.</span>
+<span id="cb45-29"><a href="#cb45-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-32"><a href="#cb45-32" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-33"><a href="#cb45-33" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(customers)</span>
+<span id="cb45-34"><a href="#cb45-34" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(category_translation)</span>
+<span id="cb45-35"><a href="#cb45-35" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(order_items)</span>
+<span id="cb45-36"><a href="#cb45-36" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(orders)</span>
+<span id="cb45-37"><a href="#cb45-37" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(products)</span>
+<span id="cb45-38"><a href="#cb45-38" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(sellers)</span>
+<span id="cb45-39"><a href="#cb45-39" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-40"><a href="#cb45-40" aria-hidden="true" tabindex="-1"></a><span class="fu">## Data dictionary</span></span>
+<span id="cb45-41"><a href="#cb45-41" aria-hidden="true" tabindex="-1"></a>Customers Table</span>
+<span id="cb45-42"><a href="#cb45-42" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Column <span class="pp">|</span> Type <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb45-43"><a href="#cb45-43" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb45-44"><a href="#cb45-44" aria-hidden="true" tabindex="-1"></a>customer_id text    Id per order, links orders to customers</span>
+<span id="cb45-45"><a href="#cb45-45" aria-hidden="true" tabindex="-1"></a>customer_unique_id  text    Permanent id of a real customer</span>
+<span id="cb45-46"><a href="#cb45-46" aria-hidden="true" tabindex="-1"></a>customer_zip_code_prefix    number  First 5 digits of zip code</span>
+<span id="cb45-47"><a href="#cb45-47" aria-hidden="true" tabindex="-1"></a>customer_city   text    Customer’s city</span>
+<span id="cb45-48"><a href="#cb45-48" aria-hidden="true" tabindex="-1"></a>customer_state  text    Two-letter state code</span>
+<span id="cb45-49"><a href="#cb45-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-50"><a href="#cb45-50" aria-hidden="true" tabindex="-1"></a>Order_items Table</span>
+<span id="cb45-51"><a href="#cb45-51" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Column <span class="pp">|</span> Type <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb45-52"><a href="#cb45-52" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb45-53"><a href="#cb45-53" aria-hidden="true" tabindex="-1"></a>order_id    text    Id of the order</span>
+<span id="cb45-54"><a href="#cb45-54" aria-hidden="true" tabindex="-1"></a>order_item_id   integer Item position within the order</span>
+<span id="cb45-55"><a href="#cb45-55" aria-hidden="true" tabindex="-1"></a>product_id  text    Id of the product</span>
+<span id="cb45-56"><a href="#cb45-56" aria-hidden="true" tabindex="-1"></a>seller_id   text    Id of the seller</span>
+<span id="cb45-57"><a href="#cb45-57" aria-hidden="true" tabindex="-1"></a>shipping_limit_date datetime    Seller’s deadline to ship the item</span>
+<span id="cb45-58"><a href="#cb45-58" aria-hidden="true" tabindex="-1"></a>price   number  Item price in BRL</span>
+<span id="cb45-59"><a href="#cb45-59" aria-hidden="true" tabindex="-1"></a>freight_value   number  Shipping cost in BRL</span>
+<span id="cb45-60"><a href="#cb45-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-61"><a href="#cb45-61" aria-hidden="true" tabindex="-1"></a>Category_translation Table</span>
+<span id="cb45-62"><a href="#cb45-62" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Column <span class="pp">|</span> Type <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb45-63"><a href="#cb45-63" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb45-64"><a href="#cb45-64" aria-hidden="true" tabindex="-1"></a>product_category_name   text    Category name in Portuguese</span>
+<span id="cb45-65"><a href="#cb45-65" aria-hidden="true" tabindex="-1"></a>product_category_name_english   text    Category name in English</span>
+<span id="cb45-66"><a href="#cb45-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-67"><a href="#cb45-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-68"><a href="#cb45-68" aria-hidden="true" tabindex="-1"></a>Orders Table</span>
+<span id="cb45-69"><a href="#cb45-69" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Column <span class="pp">|</span> Type <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb45-70"><a href="#cb45-70" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb45-71"><a href="#cb45-71" aria-hidden="true" tabindex="-1"></a>order_id    text    Id of the order</span>
+<span id="cb45-72"><a href="#cb45-72" aria-hidden="true" tabindex="-1"></a>order_item_id   integer Item position in the order</span>
+<span id="cb45-73"><a href="#cb45-73" aria-hidden="true" tabindex="-1"></a>product_id  text    Id of the product</span>
+<span id="cb45-74"><a href="#cb45-74" aria-hidden="true" tabindex="-1"></a>seller_id   text    Id of the seller</span>
+<span id="cb45-75"><a href="#cb45-75" aria-hidden="true" tabindex="-1"></a>shipping_limit_date datetime    Seller’s shipping deadline</span>
+<span id="cb45-76"><a href="#cb45-76" aria-hidden="true" tabindex="-1"></a>price   number  Item price in BRL</span>
+<span id="cb45-77"><a href="#cb45-77" aria-hidden="true" tabindex="-1"></a>freight_value   number  Shipping cost </span>
+<span id="cb45-78"><a href="#cb45-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-79"><a href="#cb45-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-80"><a href="#cb45-80" aria-hidden="true" tabindex="-1"></a>Products Table</span>
+<span id="cb45-81"><a href="#cb45-81" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Column <span class="pp">|</span> Type <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb45-82"><a href="#cb45-82" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb45-83"><a href="#cb45-83" aria-hidden="true" tabindex="-1"></a>product_id  text    Id of the product</span>
+<span id="cb45-84"><a href="#cb45-84" aria-hidden="true" tabindex="-1"></a>product_category_name   text    Product category in Portuguese</span>
+<span id="cb45-85"><a href="#cb45-85" aria-hidden="true" tabindex="-1"></a>product_name_lenght number  Characters in the product name</span>
+<span id="cb45-86"><a href="#cb45-86" aria-hidden="true" tabindex="-1"></a>product_description_lenght  number  Characters in the product description</span>
+<span id="cb45-87"><a href="#cb45-87" aria-hidden="true" tabindex="-1"></a>product_photos_qty  number  Number of published photos</span>
+<span id="cb45-88"><a href="#cb45-88" aria-hidden="true" tabindex="-1"></a>product_weight_g    number  Weight in grams</span>
+<span id="cb45-89"><a href="#cb45-89" aria-hidden="true" tabindex="-1"></a>product_length_cm   number  Length in cm</span>
+<span id="cb45-90"><a href="#cb45-90" aria-hidden="true" tabindex="-1"></a>product_height_cm   number  Height in cm</span>
+<span id="cb45-91"><a href="#cb45-91" aria-hidden="true" tabindex="-1"></a>product_width_cm    number  Width in cm</span>
+<span id="cb45-92"><a href="#cb45-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-93"><a href="#cb45-93" aria-hidden="true" tabindex="-1"></a>sellers Table</span>
+<span id="cb45-94"><a href="#cb45-94" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Column <span class="pp">|</span> Type <span class="pp">|</span> Meaning <span class="pp">|</span></span>
+<span id="cb45-95"><a href="#cb45-95" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb45-96"><a href="#cb45-96" aria-hidden="true" tabindex="-1"></a>seller_id   text    Id of the seller</span>
+<span id="cb45-97"><a href="#cb45-97" aria-hidden="true" tabindex="-1"></a>seller_zip_code_prefix  number  First 5 digits of zip code</span>
+<span id="cb45-98"><a href="#cb45-98" aria-hidden="true" tabindex="-1"></a>seller_city text    Seller’s city</span>
+<span id="cb45-99"><a href="#cb45-99" aria-hidden="true" tabindex="-1"></a>seller_state    text    Two-letter state code</span>
+<span id="cb45-100"><a href="#cb45-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-101"><a href="#cb45-101" aria-hidden="true" tabindex="-1"></a><span class="fu">## Master Data Creation</span></span>
+<span id="cb45-102"><a href="#cb45-102" aria-hidden="true" tabindex="-1"></a> Joining the 7 datasets to create one master data.</span>
+<span id="cb45-103"><a href="#cb45-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-106"><a href="#cb45-106" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-107"><a href="#cb45-107" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb45-108"><a href="#cb45-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-109"><a href="#cb45-109" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> order_items <span class="sc">%&gt;%</span></span>
+<span id="cb45-110"><a href="#cb45-110" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(orders,               <span class="at">by =</span> <span class="st">"order_id"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb45-111"><a href="#cb45-111" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(customers,            <span class="at">by =</span> <span class="st">"customer_id"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb45-112"><a href="#cb45-112" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(products,             <span class="at">by =</span> <span class="st">"product_id"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb45-113"><a href="#cb45-113" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(category_translation, <span class="at">by =</span> <span class="st">"product_category_name"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb45-114"><a href="#cb45-114" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sellers,              <span class="at">by =</span> <span class="st">"seller_id"</span>)</span>
+<span id="cb45-115"><a href="#cb45-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-116"><a href="#cb45-116" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(order_items)</span>
+<span id="cb45-117"><a href="#cb45-117" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(df_master)</span>
+<span id="cb45-118"><a href="#cb45-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-119"><a href="#cb45-119" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_master)</span>
+<span id="cb45-120"><a href="#cb45-120" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-121"><a href="#cb45-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-122"><a href="#cb45-122" aria-hidden="true" tabindex="-1"></a><span class="fu">### Missing values</span></span>
+<span id="cb45-123"><a href="#cb45-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-126"><a href="#cb45-126" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-127"><a href="#cb45-127" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(df_master))</span>
+<span id="cb45-128"><a href="#cb45-128" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-129"><a href="#cb45-129" aria-hidden="true" tabindex="-1"></a><span class="fu">## Renaming the column names</span></span>
+<span id="cb45-132"><a href="#cb45-132" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-133"><a href="#cb45-133" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-134"><a href="#cb45-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">product_name_length=</span> product_name_lenght,</span>
+<span id="cb45-135"><a href="#cb45-135" aria-hidden="true" tabindex="-1"></a>         <span class="at">product_description_length=</span> product_description_lenght)</span>
+<span id="cb45-136"><a href="#cb45-136" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-137"><a href="#cb45-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-138"><a href="#cb45-138" aria-hidden="true" tabindex="-1"></a><span class="fu">## Finding Missing data in Delivery days</span></span>
+<span id="cb45-139"><a href="#cb45-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-142"><a href="#cb45-142" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-143"><a href="#cb45-143" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span> <span class="fu">summarise</span>(<span class="at">missing_delivery_days =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(delivery_days)))</span>
+<span id="cb45-144"><a href="#cb45-144" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-145"><a href="#cb45-145" aria-hidden="true" tabindex="-1"></a><span class="in">`r sum(is.na(df_master$delivery_days))`</span> rows have no delivery days. They cannot contribute to any customer delivered date, so they are dropped. Rows before: <span class="in">`r nrow(df_master)`</span>.</span>
+<span id="cb45-146"><a href="#cb45-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-149"><a href="#cb45-149" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-150"><a href="#cb45-150" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(delivery_days))</span>
+<span id="cb45-151"><a href="#cb45-151" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(df_master)</span>
+<span id="cb45-152"><a href="#cb45-152" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-153"><a href="#cb45-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-154"><a href="#cb45-154" aria-hidden="true" tabindex="-1"></a>Rows after: <span class="in">`r nrow(df_master)`</span>.</span>
+<span id="cb45-155"><a href="#cb45-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-156"><a href="#cb45-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-157"><a href="#cb45-157" aria-hidden="true" tabindex="-1"></a><span class="fu">## Removing nulls and imputing numeric values with median</span></span>
+<span id="cb45-158"><a href="#cb45-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-161"><a href="#cb45-161" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-162"><a href="#cb45-162" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-163"><a href="#cb45-163" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb45-164"><a href="#cb45-164" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Text columns</span></span>
+<span id="cb45-165"><a href="#cb45-165" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_category_name =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_category_name), <span class="st">"unknown"</span>, product_category_name),</span>
+<span id="cb45-166"><a href="#cb45-166" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_category_name_english =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_category_name_english),</span>
+<span id="cb45-167"><a href="#cb45-167" aria-hidden="true" tabindex="-1"></a>                                            product_category_name,</span>
+<span id="cb45-168"><a href="#cb45-168" aria-hidden="true" tabindex="-1"></a>                                            product_category_name_english),</span>
+<span id="cb45-169"><a href="#cb45-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-170"><a href="#cb45-170" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Numeric columns</span></span>
+<span id="cb45-171"><a href="#cb45-171" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_name_length        =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_name_length), <span class="fu">median</span>(product_name_length, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_name_length),</span>
+<span id="cb45-172"><a href="#cb45-172" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_description_length =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_description_length), <span class="fu">median</span>(product_description_length, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_description_length),</span>
+<span id="cb45-173"><a href="#cb45-173" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_photos_qty         =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_photos_qty), <span class="fu">median</span>(product_photos_qty, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_photos_qty),</span>
+<span id="cb45-174"><a href="#cb45-174" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_weight_g           =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_weight_g), <span class="fu">median</span>(product_weight_g, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_weight_g),</span>
+<span id="cb45-175"><a href="#cb45-175" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_length_cm          =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_length_cm), <span class="fu">median</span>(product_length_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_length_cm),</span>
+<span id="cb45-176"><a href="#cb45-176" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_height_cm          =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_height_cm), <span class="fu">median</span>(product_height_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_height_cm),</span>
+<span id="cb45-177"><a href="#cb45-177" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_width_cm           =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(product_width_cm), <span class="fu">median</span>(product_width_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), product_width_cm)</span>
+<span id="cb45-178"><a href="#cb45-178" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb45-179"><a href="#cb45-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-180"><a href="#cb45-180" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(df_master))</span>
+<span id="cb45-181"><a href="#cb45-181" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-182"><a href="#cb45-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-183"><a href="#cb45-183" aria-hidden="true" tabindex="-1"></a><span class="fu">### Exploratory Analysis of specific features like - delivery days(target variable), order_id, order_staus,state</span></span>
+<span id="cb45-184"><a href="#cb45-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-185"><a href="#cb45-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-186"><a href="#cb45-186" aria-hidden="true" tabindex="-1"></a><span class="fu">### Average number of delivery days</span></span>
+<span id="cb45-187"><a href="#cb45-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-190"><a href="#cb45-190" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-191"><a href="#cb45-191" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-192"><a href="#cb45-192" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">avg_delivery_days =</span> <span class="fu">mean</span>(delivery_days))</span>
+<span id="cb45-193"><a href="#cb45-193" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-194"><a href="#cb45-194" aria-hidden="true" tabindex="-1"></a>On an average, Olist takes around 12 days to deliver its orders across all types.</span>
+<span id="cb45-195"><a href="#cb45-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-196"><a href="#cb45-196" aria-hidden="true" tabindex="-1"></a><span class="fu">### Average and max number of delivery days for each day of the week</span></span>
+<span id="cb45-197"><a href="#cb45-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-200"><a href="#cb45-200" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-201"><a href="#cb45-201" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-202"><a href="#cb45-202" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(purchase_day_of_week) <span class="sc">|&gt;</span></span>
+<span id="cb45-203"><a href="#cb45-203" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">avg_delivery_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb45-204"><a href="#cb45-204" aria-hidden="true" tabindex="-1"></a>           <span class="at">max_delivery_days =</span> <span class="fu">max</span>(delivery_days))</span>
+<span id="cb45-205"><a href="#cb45-205" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-206"><a href="#cb45-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-207"><a href="#cb45-207" aria-hidden="true" tabindex="-1"></a>The average delivery days are roughly similar for different days of purchase.</span>
+<span id="cb45-208"><a href="#cb45-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-209"><a href="#cb45-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-210"><a href="#cb45-210" aria-hidden="true" tabindex="-1"></a><span class="fu">### Calculate min. and max of purchase year month(by combining year and month as 1 column)</span></span>
+<span id="cb45-211"><a href="#cb45-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-214"><a href="#cb45-214" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-215"><a href="#cb45-215" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span>
+<span id="cb45-216"><a href="#cb45-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-217"><a href="#cb45-217" aria-hidden="true" tabindex="-1"></a>df_master <span class="ot">&lt;-</span> df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-218"><a href="#cb45-218" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">purchase_year_month =</span> <span class="fu">make_date</span>(purchase_year, purchase_month, <span class="dv">1</span>))</span>
+<span id="cb45-219"><a href="#cb45-219" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-220"><a href="#cb45-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-223"><a href="#cb45-223" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-224"><a href="#cb45-224" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-225"><a href="#cb45-225" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">min_purchase_date =</span> <span class="fu">min</span>(purchase_year_month),</span>
+<span id="cb45-226"><a href="#cb45-226" aria-hidden="true" tabindex="-1"></a>            <span class="at">max_purchase_date =</span> <span class="fu">max</span>(purchase_year_month))</span>
+<span id="cb45-227"><a href="#cb45-227" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-228"><a href="#cb45-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-229"><a href="#cb45-229" aria-hidden="true" tabindex="-1"></a><span class="fu">### Total number of orders</span></span>
+<span id="cb45-230"><a href="#cb45-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-233"><a href="#cb45-233" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-234"><a href="#cb45-234" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-235"><a href="#cb45-235" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">num_orders =</span> <span class="fu">n_distinct</span>(order_id))</span>
+<span id="cb45-236"><a href="#cb45-236" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-237"><a href="#cb45-237" aria-hidden="true" tabindex="-1"></a>There are 96476 orders placed in 2 years</span>
+<span id="cb45-238"><a href="#cb45-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-239"><a href="#cb45-239" aria-hidden="true" tabindex="-1"></a><span class="fu">### Total number of orders placed for each day of the week</span></span>
+<span id="cb45-240"><a href="#cb45-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-243"><a href="#cb45-243" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-244"><a href="#cb45-244" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-245"><a href="#cb45-245" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(purchase_day_of_week) <span class="sc">|&gt;</span></span>
+<span id="cb45-246"><a href="#cb45-246" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">num_orders =</span> <span class="fu">n_distinct</span>(order_id))</span>
+<span id="cb45-247"><a href="#cb45-247" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-248"><a href="#cb45-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-249"><a href="#cb45-249" aria-hidden="true" tabindex="-1"></a>Order placed on weekends are less as compared to orders placed on the week days</span>
+<span id="cb45-250"><a href="#cb45-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-251"><a href="#cb45-251" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-252"><a href="#cb45-252" aria-hidden="true" tabindex="-1"></a><span class="fu">### Total number of order status</span></span>
+<span id="cb45-253"><a href="#cb45-253" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-256"><a href="#cb45-256" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-257"><a href="#cb45-257" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-258"><a href="#cb45-258" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(order_status, <span class="at">name =</span> <span class="st">"num_orders"</span>)</span>
+<span id="cb45-259"><a href="#cb45-259" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-260"><a href="#cb45-260" aria-hidden="true" tabindex="-1"></a>110,189 orders were delivered and only 7 were canceled, so the cancellation rate is negligible.</span>
+<span id="cb45-261"><a href="#cb45-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-262"><a href="#cb45-262" aria-hidden="true" tabindex="-1"></a><span class="fu">### Mean, median, min and max number of delivery days for each seller state</span></span>
+<span id="cb45-263"><a href="#cb45-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-266"><a href="#cb45-266" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-267"><a href="#cb45-267" aria-hidden="true" tabindex="-1"></a>df_master <span class="sc">|&gt;</span></span>
+<span id="cb45-268"><a href="#cb45-268" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(seller_state) <span class="sc">|&gt;</span></span>
+<span id="cb45-269"><a href="#cb45-269" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">avg_delivery_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb45-270"><a href="#cb45-270" aria-hidden="true" tabindex="-1"></a>           <span class="at">median_delivery_days =</span> <span class="fu">median</span>(delivery_days),</span>
+<span id="cb45-271"><a href="#cb45-271" aria-hidden="true" tabindex="-1"></a>           <span class="at">min_delivery_days =</span> <span class="fu">min</span>(delivery_days),</span>
+<span id="cb45-272"><a href="#cb45-272" aria-hidden="true" tabindex="-1"></a>           <span class="at">max_delivery_days =</span> <span class="fu">max</span>(delivery_days),</span>
+<span id="cb45-273"><a href="#cb45-273" aria-hidden="true" tabindex="-1"></a>           <span class="at">sd_delivery_days =</span> <span class="fu">sd</span>(delivery_days),</span>
+<span id="cb45-274"><a href="#cb45-274" aria-hidden="true" tabindex="-1"></a>           <span class="at">num_orders =</span> <span class="fu">n_distinct</span>(order_id))</span>
+<span id="cb45-275"><a href="#cb45-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-276"><a href="#cb45-276" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb45-277"><a href="#cb45-277" aria-hidden="true" tabindex="-1"></a>From the above results we can see that for state Amazonas - the average delivery days are much higher (47 days) as compared to the other states. For rest of the states, average number of delivery days ranges between 11 - 17 days</span>
+<span id="cb45-278"><a href="#cb45-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-279"><a href="#cb45-279" aria-hidden="true" tabindex="-1"></a>Also total numbers of order in state Sao Paulo is the highest.</span>
+<span id="cb45-280"><a href="#cb45-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-281"><a href="#cb45-281" aria-hidden="true" tabindex="-1"></a><span class="fu">### Writing the final dataset</span></span>
+<span id="cb45-282"><a href="#cb45-282" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb45-285"><a href="#cb45-285" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-286"><a href="#cb45-286" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb45-287"><a href="#cb45-287" aria-hidden="true" tabindex="-1"></a><span class="fu">write_rds</span>(df_master, <span class="st">"data/df_master_clean.rds"</span>)</span>
+<span id="cb45-288"><a href="#cb45-288" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-289"><a href="#cb45-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-292"><a href="#cb45-292" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-293"><a href="#cb45-293" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

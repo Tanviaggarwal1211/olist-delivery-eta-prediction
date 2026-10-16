@@ -1,0 +1,256 @@
+---
+title: "Data"
+---
+
+```{r}
+#| label: setup
+#| # Importing libraries and setting up working directory
+library(tidyverse)
+# setwd("/Users/tanvijain/Olist_prediction")
+# getwd()
+```
+
+```{r}
+customers <- read_csv("data/customers.csv", show_col_types = FALSE)
+category_translation <- read_csv("data/category_translation.csv", show_col_types = FALSE)
+order_items <- read_csv("data/order_items.csv", show_col_types = FALSE)
+orders <- read_csv("data/orders.csv", show_col_types = FALSE)
+products <- read_csv("data/products.csv", show_col_types = FALSE)
+sellers <- read_csv("data/sellers.csv", show_col_types = FALSE)
+```
+
+## The dataset
+
+One row is one order at Olist website : one order, its customer, its order status, and its delivery days. The file holds `r nrow(orders)` rows and `r ncol(orders)` columns, covering `r n_distinct(orders$order_id)` orders and `r n_distinct(orders$customer_id)` customers.
+
+```{r}
+glimpse(customers)
+glimpse(category_translation)
+glimpse(order_items)
+glimpse(orders)
+glimpse(products)
+glimpse(sellers)
+```
+## Data dictionary
+Customers Table
+| Column | Type | Meaning |
+|---|---|---|
+customer_id	text	Id per order, links orders to customers
+customer_unique_id	text	Permanent id of a real customer
+customer_zip_code_prefix	number	First 5 digits of zip code
+customer_city	text	Customer’s city
+customer_state	text	Two-letter state code
+
+Order_items Table
+| Column | Type | Meaning |
+|---|---|---|
+order_id	text	Id of the order
+order_item_id	integer	Item position within the order
+product_id	text	Id of the product
+seller_id	text	Id of the seller
+shipping_limit_date	datetime	Seller’s deadline to ship the item
+price	number	Item price in BRL
+freight_value	number	Shipping cost in BRL
+
+Category_translation Table
+| Column | Type | Meaning |
+|---|---|---|
+product_category_name	text	Category name in Portuguese
+product_category_name_english	text	Category name in English
+
+
+Orders Table
+| Column | Type | Meaning |
+|---|---|---|
+order_id	text	Id of the order
+order_item_id	integer	Item position in the order
+product_id	text	Id of the product
+seller_id	text	Id of the seller
+shipping_limit_date	datetime	Seller’s shipping deadline
+price	number	Item price in BRL
+freight_value	number	Shipping cost 
+
+
+Products Table
+| Column | Type | Meaning |
+|---|---|---|
+product_id	text	Id of the product
+product_category_name	text	Product category in Portuguese
+product_name_lenght	number	Characters in the product name
+product_description_lenght	number	Characters in the product description
+product_photos_qty	number	Number of published photos
+product_weight_g	number	Weight in grams
+product_length_cm	number	Length in cm
+product_height_cm	number	Height in cm
+product_width_cm	number	Width in cm
+
+sellers Table
+| Column | Type | Meaning |
+|---|---|---|
+seller_id	text	Id of the seller
+seller_zip_code_prefix	number	First 5 digits of zip code
+seller_city	text	Seller’s city
+seller_state	text	Two-letter state code
+
+## Master Data Creation
+ Joining the 7 datasets to create one master data.
+
+```{r}
+library(dplyr)
+
+df_master <- order_items %>%
+  left_join(orders,               by = "order_id") %>%
+  left_join(customers,            by = "customer_id") %>%
+  left_join(products,             by = "product_id") %>%
+  left_join(category_translation, by = "product_category_name") %>%
+  left_join(sellers,              by = "seller_id")
+
+nrow(order_items)
+nrow(df_master)
+
+glimpse(df_master)
+```
+
+### Missing values
+
+```{r}
+colSums(is.na(df_master))
+```
+## Renaming the column names
+```{r}
+df_master <- df_master |>
+  rename(product_name_length= product_name_lenght,
+         product_description_length= product_description_lenght)
+```
+
+## Finding Missing data in Delivery days
+
+```{r}
+df_master |> summarise(missing_delivery_days = sum(is.na(delivery_days)))
+```
+`r sum(is.na(df_master$delivery_days))` rows have no delivery days. They cannot contribute to any customer delivered date, so they are dropped. Rows before: `r nrow(df_master)`.
+
+```{r}
+df_master <- df_master |> filter(!is.na(delivery_days))
+nrow(df_master)
+```
+
+Rows after: `r nrow(df_master)`.
+
+
+## Removing nulls and imputing numeric values with median
+
+```{r}
+df_master <- df_master |>
+  mutate(
+  # Text columns
+    product_category_name = if_else(is.na(product_category_name), "unknown", product_category_name),
+    product_category_name_english = if_else(is.na(product_category_name_english),
+                                            product_category_name,
+                                            product_category_name_english),
+
+  # Numeric columns
+    product_name_length        = if_else(is.na(product_name_length), median(product_name_length, na.rm = TRUE), product_name_length),
+    product_description_length = if_else(is.na(product_description_length), median(product_description_length, na.rm = TRUE), product_description_length),
+    product_photos_qty         = if_else(is.na(product_photos_qty), median(product_photos_qty, na.rm = TRUE), product_photos_qty),
+    product_weight_g           = if_else(is.na(product_weight_g), median(product_weight_g, na.rm = TRUE), product_weight_g),
+    product_length_cm          = if_else(is.na(product_length_cm), median(product_length_cm, na.rm = TRUE), product_length_cm),
+    product_height_cm          = if_else(is.na(product_height_cm), median(product_height_cm, na.rm = TRUE), product_height_cm),
+    product_width_cm           = if_else(is.na(product_width_cm), median(product_width_cm, na.rm = TRUE), product_width_cm)
+  )
+
+colSums(is.na(df_master))
+```
+
+### Exploratory Analysis of specific features like - delivery days(target variable), order_id, order_staus,state
+
+
+### Average number of delivery days
+
+```{r}
+df_master |>
+  summarise(avg_delivery_days = mean(delivery_days))
+```
+On an average, Olist takes around 12 days to deliver its orders across all types.
+
+### Average and max number of delivery days for each day of the week
+
+```{r}
+df_master |>
+  group_by(purchase_day_of_week) |>
+  summarise(avg_delivery_days = mean(delivery_days),
+           max_delivery_days = max(delivery_days))
+```
+
+The average delivery days are roughly similar for different days of purchase.
+
+
+### Calculate min. and max of purchase year month(by combining year and month as 1 column)
+
+```{r}
+library(lubridate)
+
+df_master <- df_master |>
+  mutate(purchase_year_month = make_date(purchase_year, purchase_month, 1))
+```
+
+```{r}
+df_master |>
+  summarise(min_purchase_date = min(purchase_year_month),
+            max_purchase_date = max(purchase_year_month))
+```
+
+### Total number of orders
+
+```{r}
+df_master |>
+  summarise(num_orders = n_distinct(order_id))
+```
+There are 96476 orders placed in 2 years
+
+### Total number of orders placed for each day of the week
+
+```{r}
+df_master |>
+  group_by(purchase_day_of_week) |>
+  summarise(num_orders = n_distinct(order_id))
+```
+
+Order placed on weekends are less as compared to orders placed on the week days
+
+
+### Total number of order status
+
+```{r}
+df_master |>
+  count(order_status, name = "num_orders")
+```
+110,189 orders were delivered and only 7 were canceled, so the cancellation rate is negligible.
+
+### Mean, median, min and max number of delivery days for each seller state
+
+```{r}
+df_master |>
+  group_by(seller_state) |>
+  summarise(avg_delivery_days = mean(delivery_days),
+           median_delivery_days = median(delivery_days),
+           min_delivery_days = min(delivery_days),
+           max_delivery_days = max(delivery_days),
+           sd_delivery_days = sd(delivery_days),
+           num_orders = n_distinct(order_id))
+```
+  
+From the above results we can see that for state Amazonas - the average delivery days are much higher (47 days) as compared to the other states. For rest of the states, average number of delivery days ranges between 11 - 17 days
+
+Also total numbers of order in state Sao Paulo is the highest.
+
+### Writing the final dataset
+  
+```{r}
+#| include: false
+write_rds(df_master, "data/df_master_clean.rds")
+```
+
+```{r}
+
+```
