@@ -1,0 +1,42 @@
+---
+title: "Instructor notes"
+subtitle: "Run of show for the Quarto class"
+---
+
+::: {.callout-note}
+For Dr. B. Students may read it afterwards; nothing here is secret, it is just the plan.
+:::
+
+## Before class
+
+1. Open the project by double-clicking `brew-and-bytes-showcase.Rproj`.
+2. Build pane, Render Website. Every page, the PDF and both decks render in about a minute.
+3. Open `_site/index.html` in a browser and keep these tabs ready: Home, How a .qmd works, One source three outputs (plus its PDF and its slides from the Other Formats box), Slides, GitHub and Netlify.
+4. Have the student template folder open in a second RStudio window so the "your version starts empty" comparison is one Alt-Tab away.
+5. Packages needed: `tidyverse` only. No LaTeX: the PDF is produced by Typst, which ships inside Quarto.
+
+## The 50-minute plan
+
+| Time | Page | What you do | The one point |
+|---|---|---|---|
+| 0:00 | Home | Read the business question aloud, show the navbar | A project is a question and five pages that answer it |
+| 0:05 | How a .qmd works | Source left, render right; change the title live; show inline R | Edit, render, look. Numbers are computed, never typed |
+| 0:15 | Data | Scroll the cleaning section | The four moves: show, count, decide, say why |
+| 0:22 | Exploration | Read two chart titles aloud | Action titles and the so-what sentence |
+| 0:28 | One source, three outputs | Click PDF, click slides, come back | Same file, three audiences, zero retyping |
+| 0:35 | Slides | Present three slides, press `O` for overview, swap the theme live and re-render | Slides are just another output |
+| 0:42 | GitHub and Netlify | Walk the seven-item checklist | Push or it does not exist |
+| 0:48 | Template window | Show the empty template: same pages, their content | Start tonight |
+
+## Live moments that land
+
+- In "How a .qmd works", change `nrow(cafe)` to `ncol(cafe)` inside the inline sentence and render: the sentence rewrites itself.
+- In "One source, three outputs", open the YAML, point at the three formats, then click the PDF link in the rendered page.
+- In Slides, change `theme: simple` to `theme: moon`, render, and show the deck again.
+- In the Exploration page, unfold one chart's code to show it is the same ggplot they wrote in the WCCs.
+
+## If something breaks
+
+- A page fails to render: the error names the chunk. Fix or set `#| eval: false` on that chunk and move on.
+- The PDF link is missing: run `quarto render report.qmd` alone from the Terminal tab and refresh.
+- The deck opens blank: press `F5` in the browser; revealjs occasionally needs one reload after a fresh render.

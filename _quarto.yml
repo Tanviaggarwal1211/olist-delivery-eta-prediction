@@ -1,0 +1,31 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - data.qmd
+    - eda.qmd
+
+website:
+  title: "Olist ETA Prediction"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: data.qmd
+        text: Data
+      - href: eda.qmd
+        text: Exploration
+
+format:
+  html:
+    theme: flatly
+    toc: true
+    code-fold: true
+    code-tools: true
+    smooth-scroll: true
+
+execute:
+  echo: true
+  warning: false
+  message: false

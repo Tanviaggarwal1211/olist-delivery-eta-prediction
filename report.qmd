@@ -1,0 +1,59 @@
+---
+title: "One source, three outputs"
+subtitle: "The same file rendered as a web page, a PDF, and a slide deck"
+format:
+  html:
+    toc: true
+  typst:
+    papersize: us-letter
+    fig-format: png
+  revealjs:
+    output-file: report-slides.html
+    theme: simple
+    slide-number: true
+    footer: "Olist Delivery Days Prediction - EDA"
+format-links: true
+execute:
+  echo: false
+---
+
+
+```{r}
+library(tidyverse)
+orders_eda <- readRDS("data/orders_eda.rds")
+```
+
+
+```{r}
+#| fig-width: 9
+#| fig-height: 4
+
+library(ggplot2)
+ggplot(orders_eda, aes(x = purchase_year_month, fill = delivered_status)) +
+  geom_bar() +
+  facet_wrap(~day_type) +
+  labs(title = "Orders by purchase month, split by delivery status and weekday/weekend",
+       x = "Purchase month", y = "Number of orders", fill = "Delivery status")
+```
+
+Order volume grew sharply through 2017 and then plateaued, and the late share is small almost everywhere except a few spikes in late 2017 to early 2018
+
+## What each category costs
+
+```{r}
+top_cats <- orders_eda |>
+  count(product_category_name_english, sort = TRUE) |>
+  slice_head(n = 6)
+
+top_cats
+```
+
+bed_bath_table are the most ordered category.
+
+
+
+## Things the data says
+
+- Order volume grew drastically throughout 2017 but then saturated in 2018
+- bed_bath_table, health_beauty, sports_leisure, furniture_decor, computers_accessories and housewares are the top ordered categories
+
