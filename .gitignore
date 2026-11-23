@@ -5,3 +5,6 @@
 .quarto/
 data/*.csv
 data/*.rds
+
+/.quarto/
+**/*.quarto_ipynb
