@@ -1,14 +1,20 @@
 ---
 title: "Data"
+subtitle: "Loading, joining, cleaning, and validating the Olist dataset"
 ---
+
+## Overview and Analytical Goal
+ To predict order delivery duration (`delivery_days`), I first assemble a single, analysis ready dataset. In this page, I load the six source tables, verify table dimensions and keys, merge them at the order item level, document every cleaning and missing data rule with row counts, run baseline sanity checks, and save the cleaned dataset for exploration in further steps.
 
 ```{r}
 #| label: setup
-#| # Importing libraries and setting up working directory
 library(tidyverse)
-# setwd("/Users/tanvijain/Olist_prediction")
-# getwd()
+library(lubridate)
+library(knitr)
 ```
+
+## Step 1: Loading the Six Raw Olist Tables
+ Read the six raw CSV files (customers, category_translation, order_items, orders, products, and sellers)
 
 ```{r}
 customers <- read_csv("data/customers.csv", show_col_types = FALSE)
@@ -17,9 +23,23 @@ order_items <- read_csv("data/order_items.csv", show_col_types = FALSE)
 orders <- read_csv("data/orders.csv", show_col_types = FALSE)
 products <- read_csv("data/products.csv", show_col_types = FALSE)
 sellers <- read_csv("data/sellers.csv", show_col_types = FALSE)
+
+raw_table_summary <- tibble(
+  table_name = c("order_items", "orders", "customers", "products", "sellers", "category_translation"),
+  rows = c(nrow(order_items), nrow(orders), nrow(customers), nrow(products), nrow(sellers), nrow(category_translation)),
+  columns = c(ncol(order_items), ncol(orders), ncol(customers), ncol(products), ncol(sellers), ncol(category_translation)),
+  primary_key = c("order_id + order_item_id", "order_id", "customer_id", "product_id", "seller_id", "product_category_name")
+)
+
+kable(
+  raw_table_summary,
+  format.args = list(big.mark = ","),
+  col.names = c("Table Name", "Row Count", "Column Count", "Join / Primary Key"),
+  caption = "Dimensions and join keys of the six raw Olist tables"
+)
 ```
 
-## The dataset
+ order_items `r format(nrow(order_items), big.mark = ",") rows` is more granular than orders `r format(nrow(orders), big.mark = ","` rows) because a single order can contain multiple items or sellers.
 
 One row is one order at Olist website : one order, its customer, its order status, and its delivery days. The file holds `r nrow(orders)` rows and `r ncol(orders)` columns, covering `r n_distinct(orders$order_id)` orders and `r n_distinct(orders$customer_id)` customers.
 
@@ -31,6 +51,7 @@ glimpse(orders)
 glimpse(products)
 glimpse(sellers)
 ```
+
 ## Data dictionary
 Customers Table
 | Column | Type | Meaning |
@@ -92,153 +113,274 @@ seller_zip_code_prefix	number	First 5 digits of zip code
 seller_city	text	Seller’s city
 seller_state	text	Two-letter state code
 
-## Master Data Creation
- Joining the 7 datasets to create one master data.
+## Step 2: Joining the Six Tables into One Master Dataset
+ What this step does: Uses order_items as the base table and performs five sequential left_join() operations (orders, customers, products, category_translation, and sellers) so every item retains its order timestamps, buyer/seller locations, and physical product specs. I compared row counts before and after joining to ensure no accidental many-to-many row duplication occurred.
 
 ```{r}
 library(dplyr)
+rows_before_join <- nrow(order_items)
 
-df_master <- order_items %>%
-  left_join(orders,               by = "order_id") %>%
-  left_join(customers,            by = "customer_id") %>%
-  left_join(products,             by = "product_id") %>%
-  left_join(category_translation, by = "product_category_name") %>%
-  left_join(sellers,              by = "seller_id")
+df_master <- order_items |>
+  left_join(orders, by = "order_id") |>
+  left_join(customers, by = "customer_id") |>
+  left_join(products, by = "product_id") |>
+  left_join(category_translation, by = "product_category_name") |>
+  left_join(sellers, by = "seller_id")
 
-nrow(order_items)
-nrow(df_master)
+rows_after_join <- nrow(df_master)
 
-glimpse(df_master)
+join_check <- tibble(
+  stage = c("Before joins (order_items)", "After joining all 6 tables (df_master)"),
+  rows = c(rows_before_join, rows_after_join),
+  columns = c(ncol(order_items), ncol(df_master))
+)
+
+kable(
+  join_check,
+  format.args = list(big.mark = ","),
+  col.names = c("Pipeline Stage", "Row Count", "Column Count"),
+  caption = "Row-count validation before and after merging the six Olist tables"
+)
 ```
+ The row count stays identical at r format `(rows_after_join, big.mark = ",") rows` across `r ncol(df_master)` columns, confirming a clean one-to-one lookup match across all six tables with zero row inflation
 
-### Missing values
+
+### Step 3: Auditing Missing Values and Cleaning Rules
+ What this step does: First audits missing values across every column in the joined dataset, then applies four targeted cleaning rules: fixing misspelled column names, standardizing monthly purchase dates, removing rows where the target (delivery_days) is missing, and imputing missing product metadata.
 
 ```{r}
-colSums(is.na(df_master))
+na_before <- tibble(
+  column = names(df_master),
+  missing_count = colSums(is.na(df_master)),
+  missing_pct = round(100 * colSums(is.na(df_master)) / nrow(df_master), 2)
+) |>
+  filter(missing_count > 0) |>
+  arrange(desc(missing_count))
+
+kable(
+  na_before,
+  format.args = list(big.mark = ","),
+  col.names = c("Column Name", "Missing Rows", "Missing Share (%)"),
+  caption = "Columns with missing values in the raw joined dataset"
+)
 ```
-## Renaming the column names
+
 ```{r}
+rows_initial <- nrow(df_master)
+missing_del_n <- sum(is.na(df_master$delivery_days))
+
 df_master <- df_master |>
-  rename(product_name_length= product_name_lenght,
-         product_description_length= product_description_lenght)
-```
+  rename(
+    product_name_length = product_name_lenght,
+    product_description_length = product_description_lenght
+  ) |>
+  mutate(
+    purchase_year_month = make_date(purchase_year, purchase_month, 1)
+  ) |>
+  filter(!is.na(delivery_days))
 
-## Finding Missing data in Delivery days
+rows_after_target_filter <- nrow(df_master)
 
-```{r}
-df_master |> summarise(missing_delivery_days = sum(is.na(delivery_days)))
-```
-`r sum(is.na(df_master$delivery_days))` rows have no delivery days. They cannot contribute to any customer delivered date, so they are dropped. Rows before: `r nrow(df_master)`.
-
-```{r}
-df_master <- df_master |> filter(!is.na(delivery_days))
-nrow(df_master)
-```
-
-Rows after: `r nrow(df_master)`.
-
-
-## Removing nulls and imputing numeric values with median
-
-```{r}
 df_master <- df_master |>
   mutate(
-  # Text columns
     product_category_name = if_else(is.na(product_category_name), "unknown", product_category_name),
-    product_category_name_english = if_else(is.na(product_category_name_english),
-                                            product_category_name,
-                                            product_category_name_english),
+    product_category_name_english = if_else(
+      is.na(product_category_name_english),
+      product_category_name,
+      product_category_name_english
+    ),
+    across(
+      c(
+        product_name_length,
+        product_description_length,
+        product_photos_qty,
+        product_weight_g,
+        product_length_cm,
+        product_height_cm,
+        product_width_cm
+      ),
+      ~ if_else(is.na(.x), median(.x, na.rm = TRUE), .x)
+    )
+  )
+```
 
-  # Numeric columns
-    product_name_length        = if_else(is.na(product_name_length), median(product_name_length, na.rm = TRUE), product_name_length),
-    product_description_length = if_else(is.na(product_description_length), median(product_description_length, na.rm = TRUE), product_description_length),
-    product_photos_qty         = if_else(is.na(product_photos_qty), median(product_photos_qty, na.rm = TRUE), product_photos_qty),
-    product_weight_g           = if_else(is.na(product_weight_g), median(product_weight_g, na.rm = TRUE), product_weight_g),
-    product_length_cm          = if_else(is.na(product_length_cm), median(product_length_cm, na.rm = TRUE), product_length_cm),
-    product_height_cm          = if_else(is.na(product_height_cm), median(product_height_cm, na.rm = TRUE), product_height_cm),
-    product_width_cm           = if_else(is.na(product_width_cm), median(product_width_cm, na.rm = TRUE), product_width_cm)
+ After applying these rules, `r sum(colSums(is.na(df_master)))` missing values remain across all `r ncol(df_master)` columns in `r format(nrow(df_master), big.mark = ",")` rows `(r format(n_distinct(df_master$order_id), big.mark = ",")` unique orders)
+
+
+### Step 4: Baseline Sanity Checks (Status, Target Summary, Timing, and Geography)
+ What this step does: Verifies that order statuses, target summary metrics, purchase dates, and seller states behave sensibly before moving to exploratory visualization.
+
+## Order Status and Cancellation Rate
+
+
+```{r}
+status_summary <- df_master |>
+  count(order_status, name = "order_item_rows") |>
+  mutate(
+    pct_rows = round(100 * order_item_rows / sum(order_item_rows), 4)
+  ) |>
+  arrange(desc(order_item_rows))
+
+kable(
+  status_summary,
+  digits = 4,
+  format.args = list(big.mark = ","),
+  col.names = c("Order Status", "Order-Item Rows", "Share (%)"),
+  caption = "Order-item rows and percentage share by order status"
+)
+```
+Nearly all rows with an observed `delivery_days` value are `"delivered"`, while `"canceled"` orders account for only `r status_summary$order_item_rows[status_summary$order_status == "canceled"]` rows `(r status_summary$pct_rows[status_summary$order_status == "canceled"]% cancellation rate)`, showing negligible cancellation noise in the target dataset.
+
+## Overall delivery_days Summary
+
+```{r}
+overall_del_summary <- df_master |>
+  summarise(
+    min_days = min(delivery_days),
+    avg_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    max_days = max(delivery_days),
+    sd_days = sd(delivery_days),
+    num_orders = n_distinct(order_id)
   )
 
-colSums(is.na(df_master))
+kable(
+  overall_del_summary,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Min Days", "Mean Days", "Median Days", "Max Days", "SD Days", "Unique Orders"),
+  caption = "Baseline summary statistics for delivery_days across cleaned orders"
+)
 ```
 
-### Exploratory Analysis of specific features like - delivery days(target variable), order_id, order_staus,state
+Across `r format(overall_del_summary$num_orders, big.mark = ",")` orders, `delivery_days` averages `r round(overall_del_summary$avg_days, 2)` days compared with a median of `r round(overall_del_summary$median_days, 2)` days and a maximum of `r round(overall_del_summary$max_days, 1)` days, indicating a right-skewed tail of slow deliveries.
 
 
-### Average number of delivery days
-
-```{r}
-df_master |>
-  summarise(avg_delivery_days = mean(delivery_days))
-```
-On an average, Olist takes around 12 days to deliver its orders across all types.
-
-### Average and max number of delivery days for each day of the week
+## Order Volume and Delivery Time by Day of Week and Purchase Span
 
 ```{r}
-df_master |>
+weekday_summary <- df_master |>
   group_by(purchase_day_of_week) |>
-  summarise(avg_delivery_days = mean(delivery_days),
-           max_delivery_days = max(delivery_days))
+  summarise(
+    avg_days = mean(delivery_days),
+    max_days = max(delivery_days),
+    num_orders = n_distinct(order_id),
+    .groups = "drop"
+  ) |>
+  arrange(desc(num_orders))
+
+kable(
+  weekday_summary,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Purchase Day", "Mean Days", "Max Days", "Unique Orders"),
+  caption = "Order volume and delivery duration by purchase day of week"
+)
+
+date_range_summary <- df_master |>
+  summarise(
+    min_month = min(purchase_year_month),
+    max_month = max(purchase_year_month),
+    num_orders = n_distinct(order_id)
+  )
+
+kable(
+  date_range_summary,
+  format.args = list(big.mark = ","),
+  col.names = c("Earliest Month", "Latest Month", "Unique Orders"),
+  caption = "Purchase date coverage in the cleaned dataset"
+)
 ```
+The dataset covers `r date_range_summary$min_month` through `r date_range_summary$max_month`, with order volume peaking on weekdays and average `delivery_days` remaining relatively stable across days of the week.
 
-The average delivery days are roughly similar for different days of purchase.
 
 
-### Calculate min. and max of purchase year month(by combining year and month as 1 column)
+## Delivery Performance by Seller State
 
 ```{r}
-library(lubridate)
+seller_state_summary <- df_master |>
+  group_by(seller_state) |>
+  summarise(
+    avg_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    min_days = min(delivery_days),
+    max_days = max(delivery_days),
+    sd_days = sd(delivery_days),
+    num_orders = n_distinct(order_id),
+    .groups = "drop"
+  ) |>
+  arrange(desc(avg_days))
 
-df_master <- df_master |>
-  mutate(purchase_year_month = make_date(purchase_year, purchase_month, 1))
+kable(
+  seller_state_summary,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Seller State", "Mean Days", "Median Days", "Min Days", "Max Days", "SD Days", "Unique Orders"),
+  caption = "Delivery days and order volume by seller state (full width)"
+)
+```
+
+Seller activity is heavily concentrated in `SP` `(r format(seller_state_summary$num_orders[seller_state_summary$seller_state == "SP"], big.mark = ",")` orders), whereas remote states like `AM` show much higher mean delivery times `(r round(seller_state_summary$avg_days[seller_state_summary$seller_state == "AM"], 1)` days) on very small order counts `(r seller_state_summary$num_orders[seller_state_summary$seller_state == "AM"]` orders).
+
+## Step 5: Saving the Cleaned Dataset and Next Step
+ With df_master_clean.rds verified and saved, the Exploration page examines the distribution of delivery_days first, then tests how delivery duration varies across geography, purchase month, shipping cost, and product weight/categories
+
+```{r}
+
+#| include: false
+write_rds(df_master, "data/df_master_clean.rds")
+
 ```
 
 ```{r}
-df_master |>
-  summarise(min_purchase_date = min(purchase_year_month),
-            max_purchase_date = max(purchase_year_month))
+
+# df_master <- df_master |>
+#   mutate(purchase_year_month = make_date(purchase_year, purchase_month, 1))
+# 
+# df_master |>
+#   summarise(min_purchase_date = min(purchase_year_month),
+#             max_purchase_date = max(purchase_year_month))
 ```
 
 ### Total number of orders
 
-```{r}
-df_master |>
-  summarise(num_orders = n_distinct(order_id))
-```
+# ```{r}
+# df_master |>
+#   summarise(num_orders = n_distinct(order_id))
+# ```
 There are 96476 orders placed in 2 years
 
 ### Total number of orders placed for each day of the week
 
-```{r}
-df_master |>
-  group_by(purchase_day_of_week) |>
-  summarise(num_orders = n_distinct(order_id))
-```
+# ```{r}
+# df_master |>
+#   group_by(purchase_day_of_week) |>
+#   summarise(num_orders = n_distinct(order_id))
+# ```
 
 Order placed on weekends are less as compared to orders placed on the week days
 
 
 ### Total number of order status
 
-```{r}
-df_master |>
-  count(order_status, name = "num_orders")
-```
+# ```{r}
+# df_master |>
+#   count(order_status, name = "num_orders")
+# ```
 110,189 orders were delivered and only 7 were canceled, so the cancellation rate is negligible.
 
 ### Mean, median, min and max number of delivery days for each seller state
 
-```{r}
-df_master |>
-  group_by(seller_state) |>
-  summarise(avg_delivery_days = mean(delivery_days),
-           median_delivery_days = median(delivery_days),
-           min_delivery_days = min(delivery_days),
-           max_delivery_days = max(delivery_days),
-           sd_delivery_days = sd(delivery_days),
-           num_orders = n_distinct(order_id))
-```
+# ```{r}
+# df_master |>
+#   group_by(seller_state) |>
+#   summarise(avg_delivery_days = mean(delivery_days),
+#            median_delivery_days = median(delivery_days),
+#            min_delivery_days = min(delivery_days),
+#            max_delivery_days = max(delivery_days),
+#            sd_delivery_days = sd(delivery_days),
+#            num_orders = n_distinct(order_id))
+# ```
   
 From the above results we can see that for state Amazonas - the average delivery days are much higher (47 days) as compared to the other states. For rest of the states, average number of delivery days ranges between 11 - 17 days
 
@@ -246,10 +388,10 @@ Also total numbers of order in state Sao Paulo is the highest.
 
 ### Writing the final dataset
   
-```{r}
-#| include: false
-write_rds(df_master, "data/df_master_clean.rds")
-```
+# ```{r}
+# #| include: false
+# write_rds(df_master, "data/df_master_clean.rds")
+# ```
 
 ```{r}
 
