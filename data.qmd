@@ -39,7 +39,7 @@ kable(
 )
 ```
 
- order_items `r format(nrow(order_items), big.mark = ",") rows` is more granular than orders `r format(nrow(orders), big.mark = ","` rows) because a single order can contain multiple items or sellers.
+ order_items (r format(nrow(order_items), big.mark = ",") rows) is more granular than orders (r format(nrow(orders), big.mark = ",") rows) because a single order can contain multiple items or sellers.
 
 One row is one order at Olist website : one order, its customer, its order status, and its delivery days. The file holds `r nrow(orders)` rows and `r ncol(orders)` columns, covering `r n_distinct(orders$order_id)` orders and `r n_distinct(orders$customer_id)` customers.
 
@@ -142,7 +142,7 @@ kable(
   caption = "Row-count validation before and after merging the six Olist tables"
 )
 ```
- The row count stays identical at r format `(rows_after_join, big.mark = ",") rows` across `r ncol(df_master)` columns, confirming a clean one-to-one lookup match across all six tables with zero row inflation
+ The row count stays identical at r format `(rows_after_join, big.mark = ",")` rows across `r ncol(df_master)` columns, confirming a clean one-to-one lookup match across all six tables with zero row inflation
 
 
 ### Step 3: Auditing Missing Values and Cleaning Rules
@@ -348,7 +348,7 @@ write_rds(df_master, "data/df_master_clean.rds")
 # df_master |>
 #   summarise(num_orders = n_distinct(order_id))
 # ```
-There are 96476 orders placed in 2 years
+<!-- There are 96476 orders placed in 2 years -->
 
 ### Total number of orders placed for each day of the week
 
@@ -358,7 +358,7 @@ There are 96476 orders placed in 2 years
 #   summarise(num_orders = n_distinct(order_id))
 # ```
 
-Order placed on weekends are less as compared to orders placed on the week days
+<!-- Order placed on weekends are less as compared to orders placed on the week days -->
 
 
 ### Total number of order status
@@ -367,7 +367,7 @@ Order placed on weekends are less as compared to orders placed on the week days
 # df_master |>
 #   count(order_status, name = "num_orders")
 # ```
-110,189 orders were delivered and only 7 were canceled, so the cancellation rate is negligible.
+<!-- 110,189 orders were delivered and only 7 were canceled, so the cancellation rate is negligible. -->
 
 ### Mean, median, min and max number of delivery days for each seller state
 
@@ -382,9 +382,9 @@ Order placed on weekends are less as compared to orders placed on the week days
 #            num_orders = n_distinct(order_id))
 # ```
   
-From the above results we can see that for state Amazonas - the average delivery days are much higher (47 days) as compared to the other states. For rest of the states, average number of delivery days ranges between 11 - 17 days
+<!-- From the above results we can see that for state Amazonas - the average delivery days are much higher (47 days) as compared to the other states. For rest of the states, average number of delivery days ranges between 11 - 17 days -->
 
-Also total numbers of order in state Sao Paulo is the highest.
+<!-- Also total numbers of order in state Sao Paulo is the highest. -->
 
 ### Writing the final dataset
   
