@@ -285,8 +285,8 @@ ggplot(weight_freight_tbl, aes(x = weight_group, y = mean_days, fill = weight_gr
  Adopt **route- and weight-aware delivery buffers** rather than a single flat delivery promise—for example, accounting for multi-week differences between `SP` (`r round(sp_cust$mean_days, 1)` mean customer days) and distant states such as `r top_cust_slow$customer_state[1]` (`r round(top_cust_slow$mean_days, 1)` mean days), as well as heavier `10kg+` shipments (`r round(weight_freight_tbl$mean_days[4], 1)` mean days)
  
  ### Limitations
-* **Historical scope & missing timestamps:** The Olist dataset covers 2016–2018 operations and omits orders lacking recorded delivery dates, so estimates may not reflect current carrier routing or unfulfilled orders.
-* **Small counts in remote states & non-predictive outcome fields:** Low order counts in remote states increase variance of raw averages, and post-delivery fields (`delayed_days`, `delivered_status`) are excluded from feature exploration to avoid leakage.
+**Historical scope & missing timestamps:** The Olist dataset covers 2016–2018 operations and omits orders lacking recorded delivery dates, so estimates may not reflect current carrier routing or unfulfilled orders.
+**Small counts in remote states & non-predictive outcome fields:** Low order counts in remote states increase variance of raw averages, and post-delivery fields (`delayed_days`, `delivered_status`) are excluded from feature exploration to avoid leakage.
 
 
 
