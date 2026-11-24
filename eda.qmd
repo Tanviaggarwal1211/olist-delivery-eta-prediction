@@ -1,436 +1,294 @@
 ---
 title: "Exploration"
-subtitle: "Know the data, know the outcome, then choose the chart"
+subtitle: "Basic and targeted exploratory analysis of Olist delivery days"
 ---
+
+## Overview and Target Leakage Guardrails
+
+This exploration examines `delivery_days` (days from order purchase to customer delivery) as a single numeric target using the cleaned dataset (`data/df_master_clean.rds`) from `data.qmd`. We start with the target distribution, then move through grouped summaries, monthly trends, and predictor relationships, ending with one number-backed decision, data limitations, and the transition to Milestone 2 modeling.
+
+ Any column derived from delivery outcomes or post-delivery status—such as `delayed_days` or `delivered_status`—reflects the outcome after the fact and is excluded as a predictor for `delivery_days`.
+
 
 ```{r}
 #| label: setup
 library(tidyverse)
-df_master_clean <- readRDS("data/df_master_clean.rds")
+library(lubridate)
+library(knitr)
+
+df_master <- read_rds("data/df_master_clean.rds")
 ```
 
-## Looking at data
+## ## Part 1: Basic EDA — Target (`delivery_days`) Distribution
+ Before looking at predictors or subgroups, we inspect `delivery_days` directly to see its center, spread, and skew across all cleaned order items.
 
 ```{r}
-glimpse(df_master_clean)
-```
-
-```{r}
-print(nrow(df_master_clean))
-print(ncol(df_master_clean))
-```
-
-The dataset is comprised of 110196 rows and 34 columns. Each row belongs to an order and item, where multiple items can be a part of
-a single order
-
-## The outcome on its own
-
-Getting the baseline: what does delivery days look like at Olist?
-
-```{r}
-df_master_clean |>
+target_stats <- df_master |>
   summarise(
-    min_del_days = min(delivery_days),
-    avg_del_days = mean(delivery_days),
-    median_del_days = median(delivery_days),
-    max_del_days = max(delivery_days),
-    sd_del_days = sd(delivery_days),
-    num_orders = n_distinct(order_id)
+    min_days = min(delivery_days),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    max_days = max(delivery_days),
+    sd_days = sd(delivery_days),
+    n_rows = n(),
+    n_orders = n_distinct(order_id)
   )
+
+kable(
+  target_stats,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Min", "Mean", "Median", "Max", "SD", "Rows", "Unique Orders"),
+  caption = "Summary statistics for delivery_days in class order"
+)
 ```
 
-The mean sits above the median, so delivery days are skewed to the right, with the right tail going up to a maximum of 209 days. Every comparison from here is judged against this baseline.
-
-## The same table, grouped by order status, purchase_day_of_week, customer_state and purchase_year_month
-
-## Looking at delivery days split by order status
+ Across `r format(target_stats$n_orders, big.mark = ",")` unique orders (`r format(target_stats$n_rows, big.mark = ",")` rows), `delivery_days` has a mean of `r round(target_stats$mean_days, 2)` days and a median of `r round(target_stats$median_days, 2)` days (ranging from `r round(target_stats$min_days, 1)` to `r round(target_stats$max_days, 1)` days, SD = `r round(target_stats$sd_days, 2)`), showing right skew from slower deliveries.
 
 ```{r}
-df_master_clean |>
+#| fig-cap: "Distribution of delivery_days across cleaned order items, with vertical markers for median and mean."
+ggplot(df_master, aes(x = delivery_days)) +
+  geom_histogram(bins = 50, fill = "#2b8cbe", color = "white", alpha = 0.9) +
+  geom_vline(xintercept = median(df_master$delivery_days), linetype = "dashed", color = "#d95f02", linewidth = 0.9) +
+  geom_vline(xintercept = mean(df_master$delivery_days), linetype = "dotted", color = "#1b9e77", linewidth = 0.9) +
+  labs(
+    title = "Delivery Days Center Near 10–12 Days With a Long Right Tail",
+    subtitle = "Dashed orange = median; dotted green = mean",
+    x = "Delivery Days",
+    y = "Order-Item Count"
+  ) +
+  theme_minimal()
+```
+
+ Because `r round(target_stats$mean_days, 1)` mean days exceeds `r round(target_stats$median_days, 1)` median days and reaches up to `r round(target_stats$max_days, 0)` days, evaluating median and tail behavior alongside mean error will matter when modeling `delivery_days`
+
+## Part 2: Targeted EDA — Group Comparisons, Monthly Trend, and Relationships
+ Having established the baseline shape of `delivery_days`, we next compare grouped summaries across status, day of week, seller state, and category, then inspect monthly trends and key predictor relationships.
+
+### 2.1 Grouped Summaries (Status, Day of Week, Seller State, and Category)
+
+
+```{r}
+status_tbl <- df_master |>
   group_by(order_status) |>
   summarise(
-    min_del_days = min(delivery_days),
-    avg_del_days = mean(delivery_days),
-    median_del_days = median(delivery_days),
-    max_del_days = max(delivery_days),
-    sd_del_days = sd(delivery_days),
-    num_orders = n_distinct(order_id)
-  )|>
-  arrange(desc(avg_del_days))
+    min_days = min(delivery_days),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    max_days = max(delivery_days),
+    sd_days = sd(delivery_days),
+    n_orders = n_distinct(order_id),
+    .groups = "drop"
+  ) |>
+  arrange(desc(n_orders))
+
+kable(
+  status_tbl,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Order Status", "Min", "Mean", "Median", "Max", "SD", "Unique Orders"),
+  caption = "delivery_days summary by order status"
+)
 ```
 
-Median delivery days are same for canceled and delivered orders. However, avg days for canceled orders are considerably
-higher than delivered orders. Probably due to this reason, these orders are canceled by the customer
-Note: There are only 6 canceled orders out of ~97k orders. That means we can safely assume that all the analysis done is for
-delivered orders only
-
-Now the same by purchase_day_of_week:
+ Delivered orders account for `r format(status_tbl$n_orders[1], big.mark = ",")` unique orders with a mean of `r round(status_tbl$mean_days[1], 2)` days and median of `r round(status_tbl$median_days[1], 2)` days
+ 
 
 ```{r}
-df_master_clean |>
+dow_tbl <- df_master |>
   group_by(purchase_day_of_week) |>
   summarise(
-    min_del_days = min(delivery_days),
-    avg_del_days = mean(delivery_days),
-    median_del_days = median(delivery_days),
-    max_del_days = max(delivery_days),
-    sd_del_days = sd(delivery_days),
-    num_orders = n_distinct(order_id)
-  )|>
-  arrange(desc(avg_del_days))
+    min_days = min(delivery_days),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    max_days = max(delivery_days),
+    sd_days = sd(delivery_days),
+    n_orders = n_distinct(order_id),
+    .groups = "drop"
+  ) |>
+  arrange(desc(n_orders))
+
+kable(
+  dow_tbl,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Purchase Day", "Min", "Mean", "Median", "Max", "SD", "Unique Orders"),
+  caption = "delivery_days summary by day of week (sorted by order volume)"
+)
 ```
 
-Average delivery days for Sunday to Wednesday are roughly similar. However, for Thurs - Saturday, avg delivery days are higher than that of the other days of the week. 
+ `r dow_tbl$purchase_day_of_week[1]` has the highest order count (`r format(dow_tbl$n_orders[1], big.mark = ",")` orders, `r round(dow_tbl$mean_days[1], 2)` mean days), while mean delivery duration across days stays between `r round(min(dow_tbl$mean_days), 2)` and `r round(max(dow_tbl$mean_days), 2)` days.
 
-Now the same by customer_state:
+
 
 ```{r}
+seller_tbl <- df_master |>
+  group_by(seller_state) |>
+  summarise(
+    min_days = min(delivery_days),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    max_days = max(delivery_days),
+    sd_days = sd(delivery_days),
+    n_orders = n_distinct(order_id),
+    .groups = "drop"
+  ) |>
+  arrange(desc(mean_days))
 
-df_master_clean |>
+kable(
+  seller_tbl,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Seller State", "Min", "Mean", "Median", "Max", "SD", "Unique Orders"),
+  caption = "delivery_days summary by seller state (sorted by mean delivery days)"
+)
+```
+
+  `SP` handles `r format(seller_tbl$n_orders[seller_tbl$seller_state == "SP"], big.mark = ",")` orders with `r round(seller_tbl$mean_days[seller_tbl$seller_state == "SP"], 2)` mean days, whereas slower states like `AM` average `r round(seller_tbl$mean_days[seller_tbl$seller_state == "AM"], 2)` days across `r seller_tbl$n_orders[seller_tbl$seller_state == "AM"]` orders.
+
+```{r}
+category_tbl <- df_master |>
+  group_by(product_category_name_english) |>
+  summarise(
+    mean_weight_g = mean(product_weight_g),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    sd_days = sd(delivery_days),
+    n_rows = n(),
+    .groups = "drop"
+  ) |>
+  filter(n_rows >= 50) |>
+  arrange(desc(mean_weight_g))
+
+kable(
+  head(category_tbl, 10),
+  digits = 1,
+  format.args = list(big.mark = ","),
+  col.names = c("English Category", "Mean Weight (g)", "Mean Days", "Median Days", "SD Days", "Rows"),
+  caption = "Top 10 product categories by mean weight (minimum 50 rows)"
+)
+```
+ 
+ Heavy categories like `r category_tbl$product_category_name_english[1]` (`r format(round(category_tbl$mean_weight_g[1], 0), big.mark = ",")` g mean weight) average `r round(category_tbl$mean_days[1], 1)` delivery days, consistent with bulkier items taking longer to move through fulfillment and freight
+
+### 2.2 Purchase Month Trend
+ Because orders span multiple months, we check whether monthly delivery times shift over the purchase timeline
+ Monthly mean `delivery_days` will vary across months and rise during higher-volume / seasonal periods rather than staying flat.
+
+```{r}
+monthly_tbl <- df_master |>
+  group_by(purchase_year_month) |>
+  summarise(
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    n_orders = n_distinct(order_id),
+    .groups = "drop"
+  ) |>
+  arrange(purchase_year_month)
+
+slowest_mo <- monthly_tbl |> slice_max(mean_days, n = 1)
+fastest_mo <- monthly_tbl |> slice_min(mean_days, n = 1)
+
+ggplot(monthly_tbl, aes(x = purchase_year_month, y = mean_days)) +
+  geom_line(color = "#2b8cbe", linewidth = 1) +
+  geom_point(color = "#08519c", size = 2) +
+  labs(
+    title = "Monthly Mean Delivery Days Shift Across Time and Peak in Late 2017 / Early 2018",
+    subtitle = "Mean delivery_days by purchase month",
+    x = "Purchase Month",
+    y = "Mean Delivery Days"
+  ) +
+  theme_minimal()
+```
+
+ Monthly mean `delivery_days` ranges from `r round(fastest_mo$mean_days, 1)` days (`r format(fastest_mo$purchase_year_month, "%Y-%m")`) to `r round(slowest_mo$mean_days, 1)` days (`r format(slowest_mo$purchase_year_month, "%Y-%m")`), confirming that `purchase_month` / timing is a meaningful feature to include in Milestone 2.
+
+
+### 2.3 Customer State vs. Delivery Days
+ Alongside seller state, we inspect how delivery duration varies by customer destination state (`customer_state`).
+ Orders delivered to southeastern states such as `SP` will average fewer delivery days than orders shipped to distant northern/northeastern states.
+
+```{r}
+cust_state_tbl <- df_master |>
   group_by(customer_state) |>
   summarise(
-    min_del_days = min(delivery_days),
-    avg_del_days = mean(delivery_days),
-    median_del_days = median(delivery_days),
-    max_del_days = max(delivery_days),
-    sd_del_days = sd(delivery_days),
-    num_orders = n_distinct(order_id)
-  )|>
-  arrange(desc(avg_del_days))
-```
-
-Amapá and Roraima have the highest average delivery days (~28 days). 
-Sao Paulo has the lowest mean delivery days while also being the state of highest number of orders placed. This makes sense considering most number of orders come from the capital city and Olist has a good reach in the cities of that state.
-
-Lastly, by purchase_year_month
-
-```{r}
-df_master_clean |>
-  group_by(purchase_month) |>
-  summarise(
-    min_del_days = min(delivery_days),
-    avg_del_days = mean(delivery_days),
-    median_del_days = median(delivery_days),
-    max_del_days = max(delivery_days),
-    sd_del_days = sd(delivery_days),
-    num_orders = n_distinct(order_id)
-  )|>
-  arrange((purchase_month))
-```
-
-August, September and October are months where the avg delivery days are considerably lower compared to months like February, March, November and December. It could be because of colder months from November to March, or other logistical constraints
-
-
-## Data manipulations
-
-Adding the following calculated fields
-1. Time- based
-  - Weekday/weekend flag based on the day of the week
-  - hour of day (based on timestamp)
-  - time of day (morning, afternoon, evening or night time)
-```{r}
-library(lubridate) # Used to extract time based features from timestamp
-
-df_master_clean <- df_master_clean |>
-  mutate(
-    hour_of_day = hour(order_purchase_timestamp),
-    day_type = case_when(
-      purchase_day_of_week %in% c("Saturday", "Sunday") ~ "Weekend",
-      TRUE ~ "Weekday"),
-    time_of_day = case_when(
-      hour_of_day < 6 ~ "night",
-      hour_of_day < 12 ~ "morning",
-      hour_of_day < 17 ~ "afternoon",
-      hour_of_day < 21 ~ "evening",
-      TRUE ~ "night"
-    )
-  )
-```
-
-```{r}
-df_master_clean |>
-  select(order_purchase_timestamp, hour_of_day, day_type, time_of_day) |>
-  head(5)
-```
-
-2. Price related
-  - total cost of the item which is price + freight value
-  - Price per weight (in kg) (only for the orders which have weight > 0)
-
-Checking how many rows have weight = 0
-```{r}
-df_master_clean |>
-  filter(product_weight_g == 0)
-```  
-We see that there are only 8 rows with weight = 0. We can remove these rows from our dataset so that our calculate price per weight is not null
-  
-```{r}
-df_master_clean <- df_master_clean |>
-  filter(product_weight_g != 0)
-```
-
-```{r}
-df_master_clean <- df_master_clean |>
-  mutate(
-    total_cost = price + freight_value,
-    price_per_weight = (price / product_weight_g)*1000
-    )
-```
-
-```{r}
-df_master_clean |>
-  select(price, freight_value, total_cost, product_weight_g, price_per_weight) |>
-  head(5)
-```
-
-3. Delivery status related
-  - number of days by which the order is delayed
-  - delivered status - on time, early or delayed
-  
-```{r}
-
-df_master_clean <- df_master_clean |>
-  mutate(
-    delayed_days = delivery_days - estimated_days,
-    delivered_status = case_when(
-      delivery_days == estimated_days ~ "on time",
-      delivery_days > estimated_days ~ "late",
-      TRUE ~ "early"
-    )
-  )
-```
-
-```{r}
-df_master_clean |>
-  select(delivery_days, estimated_days, delivered_status, delayed_days) |>
-  head(10)
-```
-
-
-## Count of orders by delivery status
-
-```{r}
-df_master_clean |>
-  group_by(delivered_status) |>
-  summarise(total_orders = n_distinct(order_id)) |>
-  mutate(pct = round(100 * total_orders / sum(total_orders), 1)) |>
-  arrange(desc(total_orders))
-```
-
-Good news! Around 90% of the orders are delivered earlier than the expected time. This could also mean that Olist might intentionally show the ETA more to account for unexpected delays
-
-## Distribution of delayed days
-
-```{r}
-summary(df_master_clean$delayed_days)
-```
-
-Because 90% of the orders are early, hence mean and median of delayed_days is negative
-
-
-## Looking if time relates to delays in delivery
-
-```{r}
-# Share of each status by day type
-df_master_clean |>
-  count(day_type, delivered_status) |>
-  group_by(day_type) |>
-  mutate(pct = round(100 * n / sum(n), 1))
-```
-
-Weekends and weekdays look alike on delivery status.
-
-```{r}
-df_master_clean |>
-  count(time_of_day, delivered_status) |>
-  group_by(time_of_day) |>
-  mutate(pct = round(100 * n / sum(n), 1))
-```
-
-Different times of day also look alike on delivery status.
-
-## Looking at delivered status by freight value
-
-```{r}
-df_master_clean |>
-  group_by(delivered_status) |>
-  summarise(median_freight_value = median(freight_value), median_total_cost = median(total_cost))
-```
-
-Median total cost (price + freight value) is higher for late orders than orders delivered early or on time. This could be because order being late would mean more charges incurred in transportation
-
-
-## Looking at number and pct of orders placed at different times of day
-
-```{r}
-df_master_clean |>
-  group_by(time_of_day) |>
-  summarise(
-    total_orders = n_distinct(order_id),
-    mean_cost    = round(mean(total_cost), 2),
-    median_cost  = round(median(total_cost), 2)
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    n_orders = n_distinct(order_id),
+    .groups = "drop"
   ) |>
-  mutate(pct_of_orders = round(100 * total_orders / sum(total_orders), 1)) |>
-  arrange(desc(total_orders))
-```
-We see that 1/3rd of the orders are placed in the afternoon.
-Orders placed in evening, morning and night time are split evenly
-Also, mean cost for orders placed in afternoon and evening are higher than orders placed in other times of the day
+  arrange(desc(mean_days))
 
-## Looking at total cost and price/weight columns
+top_cust_slow <- cust_state_tbl |> slice_max(mean_days, n = 1)
+sp_cust <- cust_state_tbl |> filter(customer_state == "SP")
+
+ggplot(cust_state_tbl, aes(x = reorder(customer_state, mean_days), y = mean_days)) +
+  geom_col(fill = "#41b6c4") +
+  coord_flip() +
+  labs(
+    title = "Customer States Far From Southeastern Hubs Average Substantially Longer Delivery",
+    subtitle = "Mean delivery_days across customer_state",
+    x = "Customer State",
+    y = "Mean Delivery Days"
+  ) +
+  theme_minimal()
+```
+ Customer deliveries in `SP` average `r round(sp_cust$mean_days, 1)` days across `r format(sp_cust$n_orders, big.mark = ",")` orders, compared with `r round(top_cust_slow$mean_days, 1)` days in `r top_cust_slow$customer_state[1]` (`r top_cust_slow$n_orders[1]` orders).
+ 
+### 2.4 Product Weight & Freight Value vs. Delivery Days
+ Finally, we check how item weight (`product_weight_g`) and freight cost (`freight_value`) relate to `delivery_days`.
+ Heavier items and higher-freight shipments will correspond to longer average delivery times and higher shipping charges
+ 
 
 ```{r}
-summary(df_master_clean$total_cost)
-summary(df_master_clean$price_per_weight)
+weight_freight_tbl <- df_master |>
+  mutate(
+    weight_group = case_when(
+      product_weight_g < 500 ~ "Light (<500g)",
+      product_weight_g < 2000 ~ "Medium (500g–2kg)",
+      product_weight_g < 10000 ~ "Heavy (2kg–10kg)",
+      TRUE ~ "Very Heavy (10kg+)"
+    ),
+    weight_group = factor(weight_group, levels = c("Light (<500g)", "Medium (500g–2kg)", "Heavy (2kg–10kg)", "Very Heavy (10kg+)"))
+  ) |>
+  group_by(weight_group) |>
+  summarise(
+    mean_freight_brl = mean(freight_value),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    n_rows = n(),
+    .groups = "drop"
+  )
+
+kable(
+  weight_freight_tbl,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Weight Group", "Mean Freight (BRL)", "Mean Days", "Median Days", "Rows"),
+  caption = "Freight cost and delivery_days across product weight groups"
+)
+
+ggplot(weight_freight_tbl, aes(x = weight_group, y = mean_days, fill = weight_group)) +
+  geom_col() +
+  labs(
+    title = "Very Heavy Items (10kg+) Take Longer to Deliver Than Light Items",
+    subtitle = "Mean delivery_days by product weight group",
+    x = "Product Weight Group",
+    y = "Mean Delivery Days",
+    fill = "Weight Group"
+  ) +
+  theme_minimal()
 ```
-Here, mean is considerably higher than median. This means that data showing total cost is heavily skewed to the right, meaning there are a few orders that cost Olist considerably more
-There is a wide range for total cost (6 to 7000 USD)
-Same for price per kg
-
-## Analysis of number of orders, total cost, estimated days, product weight by top 10 product categories in each segment
-
-```{r}
-total_orders <- n_distinct(df_master_clean$order_id)
-
-df_master_clean |>
-  group_by(product_category_name_english) |>
-  summarize(num_of_orders = n_distinct(order_id)) |>
-  mutate(pct_of_orders = round(100 * num_of_orders / total_orders, 1)) |>
-  arrange(desc(num_of_orders))
-```
-
-"Bed bath table" and "health beauty" are top 2 categories in terms of orders placed (~20% or orders are placed from these categories)
-
-```{r}
-df_master_clean |>
-  group_by(product_category_name_english) |>
-  summarize(avg_total_cost = mean(total_cost)) |>
-  arrange(desc(avg_total_cost))
-```
-
-Orders from "computers" category have the highest average total cost (1150 USD) whereas home comfort items have the lowest avg total cost (40 USD)
-
-```{r}
-df_master_clean |>
-  group_by(product_category_name_english) |>
-  summarize(avg_delivery_days = mean(delivery_days)) |>
-  arrange(desc(avg_delivery_days))
-```
-
-Office furniture take the highest number of delivery days on average followed by christmas supplied (probably because of the seasonal nature of the items)
-Least avg delivery days are from the category arts and craftmanship
+ Very heavy items (`10kg+`) average `r round(weight_freight_tbl$mean_days[4], 1)` delivery days and `r round(weight_freight_tbl$mean_freight_brl[4], 2)` BRL freight versus `r round(weight_freight_tbl$mean_days[1], 1)` days and `r round(weight_freight_tbl$mean_freight_brl[1], 2)` BRL freight for light items (`<500g`)
+ 
+## Decision, Limitations, and Next Steps (Milestone 2)
+ Adopt **route- and weight-aware delivery buffers** rather than a single flat delivery promise—for example, accounting for multi-week differences between `SP` (`r round(sp_cust$mean_days, 1)` mean customer days) and distant states such as `r top_cust_slow$customer_state[1]` (`r round(top_cust_slow$mean_days, 1)` mean days), as well as heavier `10kg+` shipments (`r round(weight_freight_tbl$mean_days[4], 1)` mean days)
+ 
+ ### Limitations
+* **Historical scope & missing timestamps:** The Olist dataset covers 2016–2018 operations and omits orders lacking recorded delivery dates, so estimates may not reflect current carrier routing or unfulfilled orders.
+* **Small counts in remote states & non-predictive outcome fields:** Low order counts in remote states increase variance of raw averages, and post-delivery fields (`delayed_days`, `delivered_status`) are excluded from feature exploration to avoid leakage.
 
 
-```{r}
-df_master_clean |>
-  group_by(product_category_name_english) |>
-  summarize(avg_product_weight_kg = mean(product_weight_g)/1000) |>
-  arrange(desc(avg_product_weight_kg))
-```
-
-Office furniture has the highest avg product weight (around 11.3kgs). This could be the reason why this category was highest when it came to average delivery days
-
-## Data Visualization
-
-*Distribution of numerical variables*
-
-## Total cost
-
-```{r}
-#| fig-width: 8
-#| fig-height: 3.5
-ggplot(df_master_clean, aes(x = total_cost)) + geom_histogram()
-```
-
-```{r}
-#| fig-width: 8
-#| fig-height: 3.5
-ggplot(df_master_clean, aes(x = delivery_days)) + geom_histogram()
-```
 
 
-```{r}
-#| fig-width: 8
-#| fig-height: 3.5
-ggplot(df_master_clean, aes(x = delayed_days)) + geom_histogram()
-```
-
-For total cost and delivery days, the distribution seems right skewed with some heavy clusters on the left, but a right tail showing high cost and delivery days for some orders respectively
-
-For delayed_days, we see orders clustered in the negative space as we saw earlier that 90% of the orders were actually delivered earlier than expected.
-
-## Looking at relations between different columns
-*One numeric by one categorical, per group: violin, faceted.*
-
-```{r}
-#| fig-width: 8
-#| fig-height: 4
-#| 
-library(ggplot2)
-
-ggplot(df_master_clean, aes(x = time_of_day, y = delivery_days, fill = time_of_day)) +
-  geom_violin() +
-  facet_wrap(~day_type) + labs(title = "Relationship between delivery days and time of order placed split by weekdays/weekends")
-
-```
-
-Purchase time of day barely matters for time taken for delivery
-Weekday orders show a longer maximum tail than weekend orders, but weekdays also have far more orders
-
-## Relationship between categorical and continuous variable split by a categorical variable
-
-*Counts of a orders by (hour of purchas), composition by day type (weekday vs. weekend), per delivery status: stacked bars in facets.*
-
-
-```{r}
-#| fig-width: 8
-#| fig-height: 4
-ggplot(df_master_clean, aes(x = hour_of_day, fill = day_type)) +
-  geom_bar() +
-  facet_wrap(~delivered_status, nrow = 1) + labs(title = "Orders by hour of purchase, split by weekday/weekend and delivery status", x = "Hour of day", y = "Number of orders", fill = "Day type")
-```
-
-Number of early orders placed from 10AM to post 8PM on weekdays are higher than that of weekends
-
-## Relationship between numerical variables like delivery days, total cost and product weight 
-
-*Two numeric variables, a relationship: scatter plus smooth, one layer per group.*
-
-```{r}
-#| fig-width: 8
-#| fig-height: 4
-ggplot(df_master_clean, aes(x = product_weight_g, y = total_cost)) +
-  geom_point(data = filter(df_master_clean, day_type == "Weekday"), color = "darkred") +
-  geom_smooth(data = filter(df_master_clean, day_type == "Weekday"), color = "darkred", se = FALSE) +
-  geom_point(data = filter(df_master_clean, day_type == "Weekend"), color = "gold3") +
-  geom_smooth(data = filter(df_master_clean, day_type == "Weekend"), color = "gold3", se = FALSE) +
-  labs(title = "Relationship between product weight (in g) and total cost")
-```
-
-Heavier items cost more to ship, but weight explains only part of freight. Weekday vs. weekend makes no difference.
-
-Weekday v/s weekend do not differentiate substantially. However, we do see that with increased product weight, the freight value increases too
-
-```{r}
-ggplot(df_master_clean, aes(x = freight_value, y = delivery_days)) +
-  geom_point(color="orange") + geom_smooth(method = "lm") +
-  labs(title = "Relationship between freight value and delivery days")
-```
-freight_value and delivery_days are slighly correlated. This makes sense intuitively that orders taking more time in delivery incur more cost to the company
-
-
-### Writing the final dataset
   
-```{r}
-#| include: false
-write_rds(df_master_clean, "data/orders_eda.rds")
-```
-
-## What the exploration says about the business question
-
-  - Delivery performance is strong overall. About 90% of orders arrive earlier than estimated, so Olist’s estimates are conservative.   - Delivery days and total cost are both right skewed, with a small tail of very slow or very expensive orders.
-  - When you order barely matters. Weekday v/s weekend and time of day show similar delivery status shares and delivery time       distributions, so purchase timing is not a meaningful driver of delays.
-  - Geography and product type matter more. Delivery time varies by customer state (Amapá and Roraima slowest, São Paulo fastest) and by category (office furniture slowest, likely tied to its heavy average weight).
-  - Heavier items cost more to ship. Freight rises with product weight, though with wide spread, and freight value is modestly related to delivery days.
-
-
