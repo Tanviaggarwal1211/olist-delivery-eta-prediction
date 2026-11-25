@@ -1,23 +1,51 @@
 ---
 title: "Home"
+execute:
+  warning: false
+  message: false
 ---
+
+```{r}
+#| label: home-numbers
+#| include: false
+library(tidyverse)
+
+# Headline numbers from the cleaned order-item data, so the text below always matches the pages
+olist <- readRDS("data/df_master_clean.rds")
+
+num  <- function(x, d = 1) formatC(x, format = "f", digits = d, big.mark = ",")
+pct0 <- function(x) scales::percent(x, accuracy = 1)
+
+same_state  <- olist$seller_state == olist$customer_state
+avg_same    <- mean(olist$delivery_days[same_state])
+avg_cross   <- mean(olist$delivery_days[!same_state])
+share_early <- mean(olist$delivery_days < olist$estimated_days)
+share_late  <- mean(olist$delivery_days > olist$estimated_days)
+padding     <- mean(olist$estimated_days - olist$delivery_days)
+n_items     <- nrow(olist)
+n_orders    <- n_distinct(olist$order_id)
+```
 
 ## The business question
 
-**How do delivery time, shipping cost, and product characteristics shape the customer experience at Olist, and when do orders miss the delivery promise?**
+**What drives the number of days an Olist order takes to reach the customer (`delivery_days`), and can Olist predict it at checkout well enough to show a more accurate delivery estimate?**
 
 ## Why this matters
 
-Olist is a Brazilian online marketplace that connects small sellers to customers across the country. Delivery speed and shipping cost are central to customer satisfaction, and they are set by logistics: where the seller and customer are, how heavy the item is, and what category it belongs to. About two years of order data (2016-2018) can show where the delivery promise holds, where it breaks, and what drives shipping costs.
+Olist is a Brazilian online marketplace that connects small sellers to customers across the country. At checkout it shows an estimated delivery date: too long, and customers see slower service than they get; too short, and orders arrive late. A route-aware prediction of `delivery_days` would let Olist tighten estimates where deliveries are fast and keep them safe where they are slow. The data covers `r num(n_items, 0)` order items from `r num(n_orders, 0)` orders (2016 to 2018).
 
-Use the navbar: **Data** and **Exploration** are the analysis, covering the order-level dataset (about 110K item rows), the calculated fields I built (delivery status, total cost, time-of-day features), and the plots that compare delivery time, freight, weight, and category. The remaining pages cover the file format, the presentation slides, and the GitHub and Netlify setup.
+## Key takeaways
 
-## What I found so far
+- **Exploration:** route matters most. Same-state items average `r num(avg_same)` days against `r num(avg_cross)` across states, and Olist's estimate is `r num(padding)` days longer than actual on average (`r pct0(share_early)` of items arrive early, `r pct0(share_late)` late).
+- **Modeling:** on unseen orders, the best model (a decision tree) is off by about 4.8 days on average, against 6.3 for always guessing the average and 5.5 for Olist's estimate alone. Simpler linear models come close.
+- **Decision:** pilot a route-aware checkout estimate, starting with same-state routes, and judge it by falling average promised days without a rise in the `r pct0(share_late)` late share.
 
-- About 90% of orders arrive earlier than estimated, so Olist's delivery estimates are conservative.
-- Purchase timing (weekday vs. weekend, time of day) barely changes delivery outcomes.
-- Location and product type matter more: delivery time varies by customer state and by category, and heavier items cost more to ship.
+## Where to go next
+
+**Data** (sources and cleaning) · **Exploration** (what drives delivery time) · **Modeling** (features, split, models) · **Conclusion** (what to expect by route, recommendations, limits)
+
+*Limits:* delivered orders only, partial years at both ends, and patterns rather than causes.
 
 ## About the analyst
 
-This project was written by Tanvi Aggarwal on the Olist e-commerce dataset. [GitHub profile](https://github.com/your-username)
+Written by Tanvi Aggarwal for OMIS 681 on the Olist e-commerce dataset. Code on [GitHub](https://github.com/Tanviaggarwal1211/olist-delivery-eta-prediction). *AI-use:* I used Claude (Anthropic) as a coding and writing assistant; I reviewed, ran, and take responsibility for the analysis.

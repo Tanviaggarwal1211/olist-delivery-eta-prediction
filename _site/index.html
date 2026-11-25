@@ -168,7 +168,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#the-business-question" id="toc-the-business-question" class="nav-link active" data-scroll-target="#the-business-question">The business question</a></li>
   <li><a href="#why-this-matters" id="toc-why-this-matters" class="nav-link" data-scroll-target="#why-this-matters">Why this matters</a></li>
-  <li><a href="#what-i-found-so-far" id="toc-what-i-found-so-far" class="nav-link" data-scroll-target="#what-i-found-so-far">What I found so far</a></li>
+  <li><a href="#key-takeaways" id="toc-key-takeaways" class="nav-link" data-scroll-target="#key-takeaways">Key takeaways</a></li>
+  <li><a href="#where-to-go-next" id="toc-where-to-go-next" class="nav-link" data-scroll-target="#where-to-go-next">Where to go next</a></li>
   <li><a href="#about-the-analyst" id="toc-about-the-analyst" class="nav-link" data-scroll-target="#about-the-analyst">About the analyst</a></li>
   </ul>
 </nav>
@@ -197,24 +198,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="the-business-question" class="level2">
 <h2 class="anchored" data-anchor-id="the-business-question">The business question</h2>
-<p><strong>How do delivery time, shipping cost, and product characteristics shape the customer experience at Olist, and when do orders miss the delivery promise?</strong></p>
+<p><strong>What drives the number of days an Olist order takes to reach the customer (<code>delivery_days</code>), and can Olist predict it at checkout well enough to show a more accurate delivery estimate?</strong></p>
 </section>
 <section id="why-this-matters" class="level2">
 <h2 class="anchored" data-anchor-id="why-this-matters">Why this matters</h2>
-<p>Olist is a Brazilian online marketplace that connects small sellers to customers across the country. Delivery speed and shipping cost are central to customer satisfaction, and they are set by logistics: where the seller and customer are, how heavy the item is, and what category it belongs to. About two years of order data (2016-2018) can show where the delivery promise holds, where it breaks, and what drives shipping costs.</p>
-<p>Use the navbar: <strong>Data</strong> and <strong>Exploration</strong> are the analysis, covering the order-level dataset (about 110K item rows), the calculated fields I built (delivery status, total cost, time-of-day features), and the plots that compare delivery time, freight, weight, and category. The remaining pages cover the file format, the presentation slides, and the GitHub and Netlify setup.</p>
+<p>Olist is a Brazilian online marketplace that connects small sellers to customers across the country. At checkout it shows an estimated delivery date: too long, and customers see slower service than they get; too short, and orders arrive late. A route-aware prediction of <code>delivery_days</code> would let Olist tighten estimates where deliveries are fast and keep them safe where they are slow. The data covers 110,196 order items from 96,476 orders (2016 to 2018).</p>
 </section>
-<section id="what-i-found-so-far" class="level2">
-<h2 class="anchored" data-anchor-id="what-i-found-so-far">What I found so far</h2>
+<section id="key-takeaways" class="level2">
+<h2 class="anchored" data-anchor-id="key-takeaways">Key takeaways</h2>
 <ul>
-<li>About 90% of orders arrive earlier than estimated, so Olist’s delivery estimates are conservative.</li>
-<li>Purchase timing (weekday vs.&nbsp;weekend, time of day) barely changes delivery outcomes.</li>
-<li>Location and product type matter more: delivery time varies by customer state and by category, and heavier items cost more to ship.</li>
+<li><strong>Exploration:</strong> route matters most. Same-state items average 7.5 days against 14.6 across states, and Olist’s estimate is 11.4 days longer than actual on average (91% of items arrive early, 7% late).</li>
+<li><strong>Modeling:</strong> on unseen orders, the best model (a decision tree) is off by about 4.8 days on average, against 6.3 for always guessing the average and 5.5 for Olist’s estimate alone. Simpler linear models come close.</li>
+<li><strong>Decision:</strong> pilot a route-aware checkout estimate, starting with same-state routes, and judge it by falling average promised days without a rise in the 7% late share.</li>
 </ul>
+</section>
+<section id="where-to-go-next" class="level2">
+<h2 class="anchored" data-anchor-id="where-to-go-next">Where to go next</h2>
+<p><strong>Data</strong> (sources and cleaning) · <strong>Exploration</strong> (what drives delivery time) · <strong>Modeling</strong> (features, split, models) · <strong>Conclusion</strong> (what to expect by route, recommendations, limits)</p>
+<p><em>Limits:</em> delivered orders only, partial years at both ends, and patterns rather than causes.</p>
 </section>
 <section id="about-the-analyst" class="level2">
 <h2 class="anchored" data-anchor-id="about-the-analyst">About the analyst</h2>
-<p>This project was written by Tanvi Aggarwal on the Olist e-commerce dataset. <a href="https://github.com/your-username">GitHub profile</a></p>
+<p>Written by Tanvi Aggarwal for OMIS 681 on the Olist e-commerce dataset. Code on <a href="https://github.com/Tanviaggarwal1211/olist-delivery-eta-prediction">GitHub</a>. <em>AI-use:</em> I used Claude (Anthropic) as a coding and writing assistant; I reviewed, ran, and take responsibility for the analysis.</p>
 
 
 <!-- -->
@@ -675,27 +680,56 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Home"</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">## The business question</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>**How do delivery time, shipping cost, and product characteristics shape the customer experience at Olist, and when do orders miss the delivery promise?**</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why this matters</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>Olist is a Brazilian online marketplace that connects small sellers to customers across the country. Delivery speed and shipping cost are central to customer satisfaction, and they are set by logistics: where the seller and customer are, how heavy the item is, and what category it belongs to. About two years of order data (2016-2018) can show where the delivery promise holds, where it breaks, and what drives shipping costs.</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>Use the navbar: **Data** and **Exploration** are the analysis, covering the order-level dataset (about 110K item rows), the calculated fields I built (delivery status, total cost, time-of-day features), and the plots that compare delivery time, freight, weight, and category. The remaining pages cover the file format, the presentation slides, and the GitHub and Netlify setup.</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">  message: false</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: home-numbers</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## What I found so far</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>About 90% of orders arrive earlier than estimated, so Olist's delivery estimates are conservative.</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Purchase timing (weekday vs. weekend, time of day) barely changes delivery outcomes.</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Location and product type matter more: delivery time varies by customer state and by category, and heavier items cost more to ship.</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Headline numbers from the cleaned order-item data, so the text below always matches the pages</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>olist <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">"data/df_master_clean.rds"</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>num  <span class="ot">&lt;-</span> <span class="cf">function</span>(x, <span class="at">d =</span> <span class="dv">1</span>) <span class="fu">formatC</span>(x, <span class="at">format =</span> <span class="st">"f"</span>, <span class="at">digits =</span> d, <span class="at">big.mark =</span> <span class="st">","</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>pct0 <span class="ot">&lt;-</span> <span class="cf">function</span>(x) scales<span class="sc">::</span><span class="fu">percent</span>(x, <span class="at">accuracy =</span> <span class="dv">1</span>)</span>
 <span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="fu">## About the analyst</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>This project was written by Tanvi Aggarwal on the Olist e-commerce dataset. <span class="co">[</span><span class="ot">GitHub profile</span><span class="co">](https://github.com/your-username)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>same_state  <span class="ot">&lt;-</span> olist<span class="sc">$</span>seller_state <span class="sc">==</span> olist<span class="sc">$</span>customer_state</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>avg_same    <span class="ot">&lt;-</span> <span class="fu">mean</span>(olist<span class="sc">$</span>delivery_days[same_state])</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>avg_cross   <span class="ot">&lt;-</span> <span class="fu">mean</span>(olist<span class="sc">$</span>delivery_days[<span class="sc">!</span>same_state])</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>share_early <span class="ot">&lt;-</span> <span class="fu">mean</span>(olist<span class="sc">$</span>delivery_days <span class="sc">&lt;</span> olist<span class="sc">$</span>estimated_days)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>share_late  <span class="ot">&lt;-</span> <span class="fu">mean</span>(olist<span class="sc">$</span>delivery_days <span class="sc">&gt;</span> olist<span class="sc">$</span>estimated_days)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>padding     <span class="ot">&lt;-</span> <span class="fu">mean</span>(olist<span class="sc">$</span>estimated_days <span class="sc">-</span> olist<span class="sc">$</span>delivery_days)</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>n_items     <span class="ot">&lt;-</span> <span class="fu">nrow</span>(olist)</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>n_orders    <span class="ot">&lt;-</span> <span class="fu">n_distinct</span>(olist<span class="sc">$</span>order_id)</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="fu">## The business question</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>**What drives the number of days an Olist order takes to reach the customer (`delivery_days`), and can Olist predict it at checkout well enough to show a more accurate delivery estimate?**</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why this matters</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>Olist is a Brazilian online marketplace that connects small sellers to customers across the country. At checkout it shows an estimated delivery date: too long, and customers see slower service than they get; too short, and orders arrive late. A route-aware prediction of <span class="in">`delivery_days`</span> would let Olist tighten estimates where deliveries are fast and keep them safe where they are slow. The data covers <span class="in">`r num(n_items, 0)`</span> order items from <span class="in">`r num(n_orders, 0)`</span> orders (2016 to 2018).</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="fu">## Key takeaways</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Exploration:** route matters most. Same-state items average <span class="in">`r num(avg_same)`</span> days against <span class="in">`r num(avg_cross)`</span> across states, and Olist's estimate is <span class="in">`r num(padding)`</span> days longer than actual on average (<span class="in">`r pct0(share_early)`</span> of items arrive early, <span class="in">`r pct0(share_late)`</span> late).</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Modeling:** on unseen orders, the best model (a decision tree) is off by about 4.8 days on average, against 6.3 for always guessing the average and 5.5 for Olist's estimate alone. Simpler linear models come close.</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Decision:** pilot a route-aware checkout estimate, starting with same-state routes, and judge it by falling average promised days without a rise in the <span class="in">`r pct0(share_late)`</span> late share.</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="fu">## Where to go next</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>**Data** (sources and cleaning) · **Exploration** (what drives delivery time) · **Modeling** (features, split, models) · **Conclusion** (what to expect by route, recommendations, limits)</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>*Limits:* delivered orders only, partial years at both ends, and patterns rather than causes.</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="fu">## About the analyst</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>Written by Tanvi Aggarwal for OMIS 681 on the Olist e-commerce dataset. Code on <span class="co">[</span><span class="ot">GitHub</span><span class="co">](https://github.com/Tanviaggarwal1211/olist-delivery-eta-prediction)</span>. *AI-use:* I used Claude (Anthropic) as a coding and writing assistant; I reviewed, ran, and take responsibility for the analysis.</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
 
