@@ -5,6 +5,8 @@ project:
     - index.qmd
     - data.qmd
     - eda.qmd
+    - modeling.qmd
+    - conclusion.qmd
 
 website:
   title: "Olist ETA Prediction"
@@ -16,6 +18,10 @@ website:
         text: Data
       - href: eda.qmd
         text: Exploration
+      - href: modeling.qmd
+        text: Modeling
+      - href: conclusion.qmd
+        text: Conclusion
 
 format:
   html:

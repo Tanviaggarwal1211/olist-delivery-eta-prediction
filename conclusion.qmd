@@ -1,0 +1,108 @@
+---
+title: "Conclusion"
+subtitle: "What drives Olist delivery times, and what logistics and operations teams should do with that"
+---
+
+## The answer in one paragraph
+
+Delivery time on Olist is driven primarily by origin and destination geography (`customer_state` and `seller_state`) and purchase timing (`purchase_month`), with item weight and freight cost playing a smaller supporting role. Across 110,196 order-item rows, raw `delivery_days` averages 12.01 days (median 10 days, SD 9.45 days, max 209 days), with remote northern and northeastern states like AP, RR, and AM averaging roughly 25.7 to 30.0 days. Our top baseline workflow— Ridge on Recipe 3—predicts unseen test orders (`22,040` rows) to within 5.224 days MAE and 7.862 days RMSE ($R^2 = 0.251$), cutting RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%) compared to predicting the training-set average every time (9.085 days RMSE, 6.286 days MAE).
+
+
+---
+
+## Four order scenarios, predicted
+
+The clearest way to show what the model does is to score concrete checkout scenarios with `predict()` on our fitted **Ridge (Recipe 3)** workflow and compare each prediction against a single training-mean rule (`12.01` days).
+
+
+
+```{r}
+#| label: scenario-predictions
+library(tidyverse)
+library(tidymodels)
+library(knitr)
+
+
+
+# load saved objects if written from modeling.qmd
+
+delivery_train <- read_rds("data/delivery_train.rds")
+wf_ridge_r3 <- read_rds("data/wf_ridge_r3.rds")
+
+new_orders <- tibble(
+  scenario = c(
+    "Local / nearby state, light item, off-peak month",
+    "Mid-distance route, moderate freight & weight",
+    "Long-haul route, heavy item & higher freight",
+    "Peak-season order with higher freight & weight"
+  ),
+  freight_value = c(12, 22, 45, 38),
+  product_weight_g = c(400, 1800, 8500, 5000),
+  customer_state = factor(c("SP", "RJ", "AM", "BA"), levels = levels(delivery_train$customer_state)),
+  seller_state = factor(c("SP", "SP", "SP", "SP"), levels = levels(delivery_train$seller_state)),
+  purchase_month = factor(c("4", "8", "11", "11"), levels = levels(delivery_train$purchase_month))
+)
+
+naive_rule_days <- round(mean(delivery_train$delivery_days), 1)
+
+scored_orders <- predict(wf_ridge_r3, new_data = new_orders) |>
+  bind_cols(new_orders) |>
+  mutate(
+    predicted_days = round(.pred, 1),
+    naive_rule = naive_rule_days,
+    naive_diff = round(naive_rule - predicted_days, 1)
+  ) |>
+  select(scenario, predicted_days, naive_rule, naive_diff)
+
+kable(
+  scored_orders,
+  col.names = c("Order Scenario", "Predicted Days", "Naive Rule (Days)", "Naive - Predicted"),
+  caption = "Sample checkout scenarios scored with Ridge (Recipe 3) vs. training-mean baseline"
+)
+```
+
+```{r}
+#| label: scenario-chart
+ggplot(scored_orders, aes(x = predicted_days, y = reorder(scenario, predicted_days))) +
+  geom_col(fill = "#2b8cbe", width = 0.6) +
+  labs(
+    title = "Same Store Network, Different Checkout Profiles",
+    subtitle = "Predicted delivery_days from Ridge (Recipe 3)",
+    x = "Predicted Delivery Days",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+ -Clear ranking across checkout profiles: The bar chart and scenario table show Ridge (Recipe 3) ordering the four scenarios cleanly from shortest to longest predicted transit time: 7.9 days for a local, light, off-peak order; 11.7 days for a mid-distance order with moderate freight and weight; 19.4 days for a peak-season order with higher freight and weight; and 22.9 days for a long-haul order with a heavy item and higher freight.
+ 
+  -Nearly a 3x gap between short and long-haul profiles: Even within the same network, the long-haul heavy/high-freight profile (22.9 days) is predicted to take almost three times as long as the local, light, off-peak profile (7.9 days).
+  
+  
+ -A single 12-day average misleads in both directions: Compared to the flat 12-day naive rule, the average slightly over-estimates the local order by 4.1 days (+4.1), aligns closely with the mid-distance order (0.3 days difference), and under-estimates both the peak-season higher-freight/weight order by 7.4 days (-7.4) and the long-haul heavy/high-freight order by 10.9 days (-10.9).
+ 
+  -Operational takeaway: Using route-, month-, and item-aware predictions avoids over-promising fast delivery on long-haul or peak orders while giving more realistic expectations on local shipments.
+
+  
+  
+## What the team should do
+
+1. Set checkout ETAs by origin/destination state and month, not one flat average. Geography and purchase month alone (LM on Recipe 2, 7.889 days RMSE, $R^2 = 0.246$) capture almost all of the baseline gain over a simple numeric model (LM on Recipe 1, 8.872 days RMSE, $R^2 = 0.046$).
+
+2. Use Ridge (Recipe 3) as the baseline ETA model. It edges out LM (Recipe 2), Lasso (Recipe 3) (7.891 days RMSE, 5.243 days MAE), and  Decision Tree (Recipe 4) (7.937 days RMSE, 5.222 days MAE) on test RMSE and $R^2$ while keeping predictions smooth across correlated numeric features (`freight_value` and `product_weight_g`).
+
+3. Add an upper buffer window for long-haul and tail-risk orders. Because point predictions cluster around typical delivery windows (~5–25 days), extreme delays past 50–150+ days still produce large positive residuals (`Actual - Predicted > 0`). Pairing the point estimate with a delivery window helps manage expectations on slower routes.
+
+4. Group low-volume states cleanly in baseline models. Using `step_other(threshold = 0.02)` prevents noisy estimates on small state samples in the training set while preserving signal from major and distinct regional patterns.
+
+---
+
+## How far to trust it
+
+ -Around 5.22 days MAE and **7.86 days RMSE on unseen test orders—useful for checkout ETA windows and capacity planning, but not exact to the single day on every shipment.
+ 
+ -Tail delays are still the hardest part: Residuals are skewed upward on extreme outliers where deliveries stretch far beyond typical transit times, so point estimates will under-predict severe exceptions.
+ 
+ -Random split tests "similar orders," not future shifts: The 80/20 split (`88,156` train / `22,040` test) measures generalization across orders from the historical dataset, not performance under future carrier changes or seasonal shifts.
+ 
+ -Order-item grain carries through: Because `delivery_days` is an order-level delivery duration repeated across items in multi-item orders (`110,196` rows), multi-item orders have slightly more weight in the metrics

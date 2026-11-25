@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Modeling – Olist ETA Prediction</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-9d96f532d65220ca877c0304385df42f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">Olist ETA Prediction</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./data.html"> 
+<span class="menu-text">Data</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./eda.html"> 
+<span class="menu-text">Exploration</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="./modeling.html" aria-current="page"> 
+<span class="menu-text">Modeling</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./conclusion.html"> 
+<span class="menu-text">Conclusion</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#overview-and-target-leakage-guardrails" id="toc-overview-and-target-leakage-guardrails" class="nav-link active" data-scroll-target="#overview-and-target-leakage-guardrails">Overview and Target / Leakage Guardrails</a>
+  <ul class="collapse">
+  <li><a href="#step-1-checking-skewness-of-delivery_days-before-splitting" id="toc-step-1-checking-skewness-of-delivery_days-before-splitting" class="nav-link" data-scroll-target="#step-1-checking-skewness-of-delivery_days-before-splitting">## Step 1 Checking Skewness of <code>delivery_days</code> Before Splitting</a></li>
+  <li><a href="#step-2-train-test-split-rsample" id="toc-step-2-train-test-split-rsample" class="nav-link" data-scroll-target="#step-2-train-test-split-rsample">Step 2: Train / Test Split (<code>rsample</code>)</a></li>
+  <li><a href="#step-3-numeric-correlations-and-categorical-summaries-on-training-data" id="toc-step-3-numeric-correlations-and-categorical-summaries-on-training-data" class="nav-link" data-scroll-target="#step-3-numeric-correlations-and-categorical-summaries-on-training-data">Step 3: Numeric Correlations and Categorical Summaries (on Training Data)</a></li>
+  <li><a href="#step-4-defining-four-recipes-recipes" id="toc-step-4-defining-four-recipes-recipes" class="nav-link" data-scroll-target="#step-4-defining-four-recipes-recipes">Step 4: Defining Four Recipes (<code>recipes</code>)</a></li>
+  <li><a href="#step-5-naive-baseline-and-model-specifications-parsnip-workflows" id="toc-step-5-naive-baseline-and-model-specifications-parsnip-workflows" class="nav-link" data-scroll-target="#step-5-naive-baseline-and-model-specifications-parsnip-workflows">Step 5: Naive Baseline and Model Specifications (<code>parsnip</code> + <code>workflows</code>)</a></li>
+  <li><a href="#step-6-test-set-predictions-model-comparison-rmse-mae-r²-and-diagnostics" id="toc-step-6-test-set-predictions-model-comparison-rmse-mae-r²-and-diagnostics" class="nav-link" data-scroll-target="#step-6-test-set-predictions-model-comparison-rmse-mae-r²-and-diagnostics">Step 6: Test-Set Predictions, Model Comparison (<code>RMSE</code>, <code>MAE</code>, <code>R²</code>), and Diagnostics</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Modeling</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+<p class="subtitle lead">Baseline regression, regularization, and decision tree models for Olist delivery_days</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="overview-and-target-leakage-guardrails" class="level1">
+<h1>Overview and Target / Leakage Guardrails</h1>
+<p>This page builds straightforward baseline models to predict <code>delivery_days</code> (days from order purchase to customer delivery) using the cleaned dataset (<code>data/df_master_clean.rds</code>) from <code>data.qmd</code>[cite: 2, 3]. Following the <code>tidymodels</code> workflow from Weeks 8–12, we check target skewness first, split into training and testing sets, inspect numeric correlations and categorical groups on the training set, define four recipes, fit linear regression, Lasso, Ridge, and decision tree models, compare them against a naive baseline on the test set, and inspect diagnostic plots[cite: 3].</p>
+<p>Post-delivery or target-derived fields (such as <code>delayed_days</code> or <code>delivered_status</code>) are excluded from predictors, and all preprocessing steps (<code>step_other()</code>, <code>step_dummy()</code>, <code>step_normalize()</code>) are learned inside <code>workflows</code> fitted only on the training set[cite: 2].</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidymodels)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(corrplot)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rpart.plot)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>df_model <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/df_master_clean.rds"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">purchase_month =</span> <span class="fu">factor</span>(purchase_month),</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">customer_state =</span> <span class="fu">factor</span>(customer_state),</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">seller_state =</span> <span class="fu">factor</span>(seller_state),</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_category_name_english =</span> <span class="fu">factor</span>(product_category_name_english)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    delivery_days,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    freight_value,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    price,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    product_weight_g,</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    product_name_length,</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    product_description_length,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    product_photos_qty,</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    customer_state,</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    seller_state,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    purchase_month,</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    product_category_name_english</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="step-1-checking-skewness-of-delivery_days-before-splitting" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-checking-skewness-of-delivery_days-before-splitting">## Step 1 Checking Skewness of <code>delivery_days</code> Before Splitting</h2>
+<p>Compares the mean, median, and <code>log10(delivery_days)</code> histogram (noting the <code>18</code> rows where <code>delivery_days == 0</code>, since <span class="math inline">\(\log_{10}(0)\)</span> is undefined) to check whether <code>delivery_days</code> is normal or right-skewed before modeling[cite: 5, 7, 22, 66, 67].</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>skew_check_tbl <span class="ot">&lt;-</span> df_model <span class="sc">|&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">min_days =</span> <span class="fu">min</span>(delivery_days),</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_zero_days =</span> <span class="fu">sum</span>(delivery_days <span class="sc">==</span> <span class="dv">0</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">median_days =</span> <span class="fu">median</span>(delivery_days),</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">max_days =</span> <span class="fu">max</span>(delivery_days),</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_days =</span> <span class="fu">sd</span>(delivery_days),</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_rows =</span> <span class="fu">n</span>()</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  skew_check_tbl,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">digits =</span> <span class="dv">2</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">format.args =</span> <span class="fu">list</span>(<span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Min"</span>, <span class="st">"Zero-Day Rows"</span>, <span class="st">"Mean"</span>, <span class="st">"Median"</span>, <span class="st">"Max"</span>, <span class="st">"SD"</span>, <span class="st">"Rows"</span>),</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Skewness check on delivery_days before train/test splitting"</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Skewness check on delivery_days before train/test splitting</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Min</th>
+<th style="text-align: right;">Zero-Day Rows</th>
+<th style="text-align: right;">Mean</th>
+<th style="text-align: right;">Median</th>
+<th style="text-align: right;">Max</th>
+<th style="text-align: right;">SD</th>
+<th style="text-align: right;">Rows</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">12.01</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">209</td>
+<td style="text-align: right;">9.45</td>
+<td style="text-align: right;">110,196</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_model <span class="sc">|&gt;</span> <span class="fu">filter</span>(delivery_days <span class="sc">&gt;</span> <span class="dv">0</span>), <span class="fu">aes</span>(<span class="at">x =</span> <span class="fu">log10</span>(delivery_days))) <span class="sc">+</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">40</span>, <span class="at">fill =</span> <span class="st">"#1b9e77"</span>, <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">alpha =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"log10(delivery_days) Pulls in the Right Tail (Excluding 18 Zero-Day Rows)"</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Distribution of positive delivery_days on a base-10 log scale"</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"log10(delivery_days)"</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Order-Item Count"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="modeling_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Across the 110,196 cleaned order-item rows, raw delivery_days is right-skewed—the mean (12.01 days) exceeds the median (10 days), the standard deviation is 9.45 days, and the upper tail reaches 209 days. While applying a <span class="math inline">\(\log_{10}\)</span> transformation (excluding the 18 zero-day deliveries where <span class="math inline">\(\log_{10}(0)\)</span> is undefined) pulls in that long right tail into a much more symmetric distribution, we keep delivery_days on its raw day scale so model evaluation metrics (RMSE and MAE) stay directly interpretable in days for a manager, while using step_normalize() inside our recipes to standardize predictor scales.</p>
+</section>
+<section id="step-2-train-test-split-rsample" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-train-test-split-rsample">Step 2: Train / Test Split (<code>rsample</code>)</h2>
+<p>Splits <code>df_model</code> into an 80% training set and a 20% test set with a fixed seed (<code>123</code>) so all exploratory checks and model fits happen on the training set while the test set stays held out for evaluation[cite: 25, 57].</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>delivery_split <span class="ot">&lt;-</span> <span class="fu">initial_split</span>(df_model, <span class="at">prop =</span> <span class="fl">0.80</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>delivery_train <span class="ot">&lt;-</span> <span class="fu">training</span>(delivery_split)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>delivery_test  <span class="ot">&lt;-</span> <span class="fu">testing</span>(delivery_split)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>split_summary <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="fu">c</span>(<span class="st">"Training Set"</span>, <span class="st">"Testing Set"</span>),</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">rows =</span> <span class="fu">c</span>(<span class="fu">nrow</span>(delivery_train), <span class="fu">nrow</span>(delivery_test)),</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">share_pct =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> <span class="fu">c</span>(<span class="fu">nrow</span>(delivery_train), <span class="fu">nrow</span>(delivery_test)) <span class="sc">/</span> <span class="fu">nrow</span>(df_model), <span class="dv">1</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  split_summary,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">format.args =</span> <span class="fu">list</span>(<span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Dataset"</span>, <span class="st">"Row Count"</span>, <span class="st">"Share (%)"</span>),</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"80/20 train-test split counts"</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>80/20 train-test split counts</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Dataset</th>
+<th style="text-align: right;">Row Count</th>
+<th style="text-align: right;">Share (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Training Set</td>
+<td style="text-align: right;">88,156</td>
+<td style="text-align: right;">80</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Testing Set</td>
+<td style="text-align: right;">22,040</td>
+<td style="text-align: right;">20</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Using a reproducible 80/20 split (set.seed(123)), we allocate 88,156 order-item rows (80%) to delivery_train for exploratory checks, preprocessing, and model fitting, while holding out 22,040 rows (20%) in delivery_test so final evaluation metrics reflect unseen data without leakage</p>
+</section>
+<section id="step-3-numeric-correlations-and-categorical-summaries-on-training-data" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-numeric-correlations-and-categorical-summaries-on-training-data">Step 3: Numeric Correlations and Categorical Summaries (on Training Data)</h2>
+<p>Computes correlations among <code>delivery_days</code> and numeric predictors on <code>delivery_train</code> via <code>cor()</code> and <code>corrplot()</code>[cite: 23, 24], and summarizes <code>delivery_days</code> across <code>customer_state</code> using <code>group_by()</code> and <code>summarise()</code>[cite: 5].</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>num_cor_mat <span class="ot">&lt;-</span> delivery_train <span class="sc">|&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(delivery_days, freight_value, price, product_weight_g, product_photos_qty) <span class="sc">|&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cor</span>(<span class="at">use =</span> <span class="st">"complete.obs"</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(num_cor_mat, <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   delivery_days freight_value price product_weight_g
+delivery_days              1.000         0.213 0.062            0.087
+freight_value              0.213         1.000 0.407            0.602
+price                      0.062         0.407 1.000            0.335
+product_weight_g           0.087         0.602 0.335            1.000
+product_photos_qty        -0.025         0.023 0.054            0.027
+                   product_photos_qty
+delivery_days                  -0.025
+freight_value                   0.023
+price                           0.054
+product_weight_g                0.027
+product_photos_qty              1.000</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">corrplot</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  num_cor_mat,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"color"</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"upper"</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">addCoef.col =</span> <span class="st">"black"</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">number.cex =</span> <span class="fl">0.75</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">tl.cex =</span> <span class="fl">0.85</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Correlations Among delivery_days and Key Numeric Predictors"</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">0</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="modeling_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Among the numeric predictors in delivery_train, freight_value has the strongest linear correlation with delivery_days (<span class="math inline">\(r = 0.213\)</span>), followed weakly by product_weight_g (<span class="math inline">\(r = 0.087\)</span>) and price (<span class="math inline">\(r = 0.062\)</span>), while product_photos_qty is essentially flat (<span class="math inline">\(r = -0.025\)</span>). Notice also that freight_value correlates moderately with product_weight_g (<span class="math inline">\(r = 0.602\)</span>) and price (<span class="math inline">\(r = 0.407\)</span>), which makes regularized models (Lasso and Ridge) useful when combining correlated item attributes alongside geography and timing.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>cat_state_summary <span class="ot">&lt;-</span> delivery_train <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(customer_state) <span class="sc">|&gt;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_rows =</span> <span class="fu">n</span>(),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">median_days =</span> <span class="fu">median</span>(delivery_days),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(mean_days))</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(cat_state_summary, <span class="dv">10</span>),</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">digits =</span> <span class="dv">2</span>,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">format.args =</span> <span class="fu">list</span>(<span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Customer State"</span>, <span class="st">"Training Rows"</span>, <span class="st">"Mean Days"</span>, <span class="st">"Median Days"</span>),</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Top 10 customer states by mean delivery_days in training data"</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Top 10 customer states by mean delivery_days in training data</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Customer State</th>
+<th style="text-align: right;">Training Rows</th>
+<th style="text-align: right;">Mean Days</th>
+<th style="text-align: right;">Median Days</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">AP</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">30.03</td>
+<td style="text-align: right;">24.5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">RR</td>
+<td style="text-align: right;">32</td>
+<td style="text-align: right;">29.59</td>
+<td style="text-align: right;">25.5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">AM</td>
+<td style="text-align: right;">130</td>
+<td style="text-align: right;">25.73</td>
+<td style="text-align: right;">25.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AL</td>
+<td style="text-align: right;">343</td>
+<td style="text-align: right;">24.00</td>
+<td style="text-align: right;">21.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">PA</td>
+<td style="text-align: right;">870</td>
+<td style="text-align: right;">23.56</td>
+<td style="text-align: right;">21.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SE</td>
+<td style="text-align: right;">312</td>
+<td style="text-align: right;">21.45</td>
+<td style="text-align: right;">18.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">MA</td>
+<td style="text-align: right;">629</td>
+<td style="text-align: right;">21.04</td>
+<td style="text-align: right;">19.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AC</td>
+<td style="text-align: right;">69</td>
+<td style="text-align: right;">20.49</td>
+<td style="text-align: right;">18.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CE</td>
+<td style="text-align: right;">1,156</td>
+<td style="text-align: right;">20.45</td>
+<td style="text-align: right;">17.5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">PB</td>
+<td style="text-align: right;">476</td>
+<td style="text-align: right;">20.22</td>
+<td style="text-align: right;">18.0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>In the training set, remote northern and northeastern destination states experience substantially longer transit times than the overall 12.01-day average—led by AP (mean 30.03 days, median 24.5 days across 60 rows), RR (mean 29.59 days, median 25.5 days across 32 rows), and AM (mean 25.73 days, median 25.0 days across 130 rows). Notice also that several of these slower states have very small sample sizes (under 2% of the 88,156 training rows, i.e., fewer than ~1,763 rows), which is why step_other(threshold = 0.02) groups low-frequency states into an “other” bucket before creating dummy variables so models do not overfit sparse state indicators.</p>
+<hr>
+</section>
+<section id="step-4-defining-four-recipes-recipes" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-defining-four-recipes-recipes">Step 4: Defining Four Recipes (<code>recipes</code>)</h2>
+<p>Defines four recipes with progressive predictor sets and uses <code>step_normalize()</code> on numeric predictors (plus <code>step_other()</code> and <code>step_dummy()</code> on categorical predictors) inside the recipe pipeline[cite: 6, 7, 27]. Because <code>step_dummy()</code> converts categorical columns into numeric <code>0/1</code> indicator columns, Lasso and Ridge (<code>glmnet</code>) can use recipes that include dummy-encoded categorical predictors[cite: 7, 9, 27, 49].</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 1: Simple numeric recipe (freight and weight)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>recipe_1 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(delivery_days <span class="sc">~</span> freight_value <span class="sc">+</span> product_weight_g, <span class="at">data =</span> delivery_train) <span class="sc">|&gt;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_normalize</span>(<span class="fu">all_numeric_predictors</span>())</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 2: Pick-and-choose geography + purchase month</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>recipe_2 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(delivery_days <span class="sc">~</span> customer_state <span class="sc">+</span> seller_state <span class="sc">+</span> purchase_month, <span class="at">data =</span> delivery_train) <span class="sc">|&gt;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_other</span>(<span class="fu">all_nominal_predictors</span>(), <span class="at">threshold =</span> <span class="fl">0.02</span>) <span class="sc">|&gt;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_dummy</span>(<span class="fu">all_nominal_predictors</span>())</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 3: Combined numeric + geography + month</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>recipe_3 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  delivery_days <span class="sc">~</span> freight_value <span class="sc">+</span> product_weight_g <span class="sc">+</span> customer_state <span class="sc">+</span> seller_state <span class="sc">+</span> purchase_month,</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> delivery_train</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_other</span>(<span class="fu">all_nominal_predictors</span>(), <span class="at">threshold =</span> <span class="fl">0.02</span>) <span class="sc">|&gt;</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_dummy</span>(<span class="fu">all_nominal_predictors</span>()) <span class="sc">|&gt;</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_normalize</span>(<span class="fu">all_numeric_predictors</span>())</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 4: Broader set adding product category and item price</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>recipe_4 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  delivery_days <span class="sc">~</span> freight_value <span class="sc">+</span> price <span class="sc">+</span> product_weight_g <span class="sc">+</span> customer_state <span class="sc">+</span> seller_state <span class="sc">+</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    purchase_month <span class="sc">+</span> product_category_name_english,</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> delivery_train</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_other</span>(<span class="fu">all_nominal_predictors</span>(), <span class="at">threshold =</span> <span class="fl">0.02</span>) <span class="sc">|&gt;</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_dummy</span>(<span class="fu">all_nominal_predictors</span>()) <span class="sc">|&gt;</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_normalize</span>(<span class="fu">all_numeric_predictors</span>())</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>recipe_1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Moving from <code>recipe_1</code> (2 numeric predictors) through <code>recipe_2</code> (geography and month) and <code>recipe_3</code> (combined core features) to <code>recipe_4</code> (adding category and price) tests whether richer inputs reduce out-of-sample error[cite: 27, 32].</p>
+<hr>
+</section>
+<section id="step-5-naive-baseline-and-model-specifications-parsnip-workflows" class="level2">
+<h2 class="anchored" data-anchor-id="step-5-naive-baseline-and-model-specifications-parsnip-workflows">Step 5: Naive Baseline and Model Specifications (<code>parsnip</code> + <code>workflows</code>)</h2>
+<p>Computes a naive baseline (predicting the training mean <code>delivery_days</code> on <code>delivery_test</code>) and fits targeted <code>parsnip</code> workflows—Linear Regression (<code>lm</code>) on <code>recipe_1</code> and <code>recipe_2</code>, Lasso (<code>glmnet</code>, <code>mixture = 1</code>) and Ridge (<code>glmnet</code>, <code>mixture = 0</code>) on <code>recipe_3</code>, and Decision Tree (<code>rpart</code>) on <code>recipe_4</code>—on <code>delivery_train</code> only[cite: 11, 27, 28, 49]</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>naive_mean_days <span class="ot">&lt;-</span> <span class="fu">mean</span>(delivery_train<span class="sc">$</span>delivery_days)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>naive_preds <span class="ot">&lt;-</span> delivery_test <span class="sc">|&gt;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">.pred =</span> naive_mean_days)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>naive_metrics <span class="ot">&lt;-</span> naive_preds <span class="sc">|&gt;</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Naive Baseline (Train Mean)"</span>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>lm_spec <span class="ot">&lt;-</span> <span class="fu">linear_reg</span>() <span class="sc">|&gt;</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"lm"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>lasso_spec <span class="ot">&lt;-</span> <span class="fu">linear_reg</span>(<span class="at">penalty =</span> <span class="fl">0.1</span>, <span class="at">mixture =</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"glmnet"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>ridge_spec <span class="ot">&lt;-</span> <span class="fu">linear_reg</span>(<span class="at">penalty =</span> <span class="fl">0.1</span>, <span class="at">mixture =</span> <span class="dv">0</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"glmnet"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>dt_spec <span class="ot">&lt;-</span> <span class="fu">decision_tree</span>(<span class="at">cost_complexity =</span> <span class="fl">0.001</span>, <span class="at">tree_depth =</span> <span class="dv">6</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"rpart"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>wf_lm_r1 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_1) <span class="sc">|&gt;</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(lm_spec) <span class="sc">|&gt;</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>wf_lm_r2 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_2) <span class="sc">|&gt;</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(lm_spec) <span class="sc">|&gt;</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>wf_lasso_r3 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_3) <span class="sc">|&gt;</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(lasso_spec) <span class="sc">|&gt;</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>wf_ridge_r3 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_3) <span class="sc">|&gt;</span></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(ridge_spec) <span class="sc">|&gt;</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>wf_dt_r4 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_4) <span class="sc">|&gt;</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(dt_spec) <span class="sc">|&gt;</span></span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(wf_lm_r1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 3 × 5
+  term             estimate std.error statistic  p.value
+  &lt;chr&gt;               &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+1 (Intercept)        12.0      0.0314     383.  0       
+2 freight_value       2.41     0.0393      61.3 0       
+3 product_weight_g   -0.623    0.0393     -15.8 1.70e-56</code></pre>
+</div>
+</div>
+<p>In the simple numeric linear model (wf_lm_r1 on recipe_1, where predictors are normalized to mean 0 and SD 1), the intercept is about 12.01 days at average freight_value and product_weight_g. A 1-SD increase in freight_value is associated with roughly +2.41 more delivery days (<span class="math inline">\(p &lt; 2.2 \times 10^{-16}\)</span>), whereas a 1-SD increase in product_weight_g has a small negative coefficient of about <span class="math inline">\(-0.62\)</span> days (<span class="math inline">\(p = 1.70 \times 10^{-56}\)</span>) once freight_value is held constant—reflecting the correlation between weight and freight cost seen earlier, as well as why simple two-feature linear models have limitations before adding geography, timing, and item details.</p>
+<hr>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">"data"</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write_rds</span>(delivery_train, <span class="st">"data/delivery_train.rds"</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">write_rds</span>(wf_ridge_r3, <span class="st">"data/wf_ridge_r3.rds"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="step-6-test-set-predictions-model-comparison-rmse-mae-r²-and-diagnostics" class="level2">
+<h2 class="anchored" data-anchor-id="step-6-test-set-predictions-model-comparison-rmse-mae-r²-and-diagnostics">Step 6: Test-Set Predictions, Model Comparison (<code>RMSE</code>, <code>MAE</code>, <code>R²</code>), and Diagnostics</h2>
+<p>Evaluates all models on <code>delivery_test</code> using <code>rmse</code>, <code>mae</code>, and <code>rsq</code> (all in raw days for <code>RMSE</code> and <code>MAE</code>), and plots predicted vs.&nbsp;actual values, residuals, and the decision tree[cite: 29, 31, 50, 54, 60]</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>preds_lm_r1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_lm_r1, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>preds_lm_r2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_lm_r2, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>preds_lasso_r3 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_lasso_r3, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>preds_ridge_r3 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_ridge_r3, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>preds_dt_r4 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_dt_r4, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>m_lm_r1    <span class="ot">&lt;-</span> preds_lm_r1    <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"LM (Recipe 1)"</span>)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>m_lm_r2    <span class="ot">&lt;-</span> preds_lm_r2    <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"LM (Recipe 2)"</span>)</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>m_lasso_r3 <span class="ot">&lt;-</span> preds_lasso_r3 <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Lasso (Recipe 3)"</span>)</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>m_ridge_r3 <span class="ot">&lt;-</span> preds_ridge_r3 <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Ridge (Recipe 3)"</span>)</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>m_dt_r4    <span class="ot">&lt;-</span> preds_dt_r4    <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Decision Tree (Recipe 4)"</span>)</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>all_metrics <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(naive_metrics, m_lm_r1, m_lm_r2, m_lasso_r3, m_ridge_r3, m_dt_r4) <span class="sc">|&gt;</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(model, .metric, .estimate) <span class="sc">|&gt;</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> .metric, <span class="at">values_from =</span> .estimate) <span class="sc">|&gt;</span></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(rmse)</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>  all_metrics,</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Model"</span>, <span class="st">"RMSE (Days)"</span>, <span class="st">"R²"</span>, <span class="st">"MAE (Days)"</span>),</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Test-set performance across baseline and candidate models (lower RMSE/MAE is better; higher R² is better)"</span></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Test-set performance across baseline and candidate models (lower RMSE/MAE is better; higher R² is better)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">RMSE (Days)</th>
+<th style="text-align: right;">R²</th>
+<th style="text-align: right;">MAE (Days)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Ridge (Recipe 3)</td>
+<td style="text-align: right;">7.862</td>
+<td style="text-align: right;">0.251</td>
+<td style="text-align: right;">5.224</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">LM (Recipe 2)</td>
+<td style="text-align: right;">7.889</td>
+<td style="text-align: right;">0.246</td>
+<td style="text-align: right;">5.260</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Lasso (Recipe 3)</td>
+<td style="text-align: right;">7.891</td>
+<td style="text-align: right;">0.246</td>
+<td style="text-align: right;">5.243</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Decision Tree (Recipe 4)</td>
+<td style="text-align: right;">7.937</td>
+<td style="text-align: right;">0.237</td>
+<td style="text-align: right;">5.222</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">LM (Recipe 1)</td>
+<td style="text-align: right;">8.872</td>
+<td style="text-align: right;">0.046</td>
+<td style="text-align: right;">6.060</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Naive Baseline (Train Mean)</td>
+<td style="text-align: right;">9.085</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">6.286</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>-Best overall baseline performance: Ridge (Recipe 3) leads the test set on both RMSE (7.862 days) and <span class="math inline">\(R^2\)</span> (0.251), while tying closely with Decision Tree (Recipe 4) on MAE (5.224 days vs.&nbsp;5.222 days). Compared to the naive training-mean baseline (RMSE 9.085 days, MAE 6.286 days), Ridge (Recipe 3) cuts RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%).</p>
+<p>-Geography and purchase month carry the biggest lift: LM (Recipe 2)—using only customer_state, seller_state, and purchase_month—reaches 7.889 days RMSE, 5.260 days MAE, and 0.246 <span class="math inline">\(R^2\)</span>, far outperforming LM (Recipe 1) (RMSE 8.872 days, MAE 6.060 days, <span class="math inline">\(R^2\)</span> 0.046), which uses only normalized freight_value and product_weight_g.</p>
+<p>-Close race among richer baseline models: Ridge (Recipe 3), LM (Recipe 2), Lasso (Recipe 3; RMSE 7.891 days, MAE 5.243 days, <span class="math inline">\(R^2\)</span> 0.246), and Decision Tree (Recipe 4; RMSE 7.937 days, MAE 5.222 days, <span class="math inline">\(R^2\)</span> 0.237) all cluster tightly around ~7.86–7.94 days RMSE and ~5.22–5.26 days MAE.</p>
+<p>-Practical takeaway for management: Adding origin/destination geography and timing explains roughly a quarter of test-set variance (<span class="math inline">\(R^2 \approx 0.25\)</span>) and trims typical absolute error by ~1.06 days per item compared to a constant average, though ~5.2 days of average error and ~7.9 days of RMSE still leave room for unmeasured transit/carrier factors and extreme tail delays.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>best_model_name <span class="ot">&lt;-</span> all_metrics<span class="sc">$</span>model[<span class="dv">1</span>]</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>best_preds <span class="ot">&lt;-</span> <span class="cf">switch</span>(</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  best_model_name,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Naive Baseline (Train Mean)"</span> <span class="ot">=</span> naive_preds,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LM (Recipe 1)"</span> <span class="ot">=</span> preds_lm_r1,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LM (Recipe 2)"</span> <span class="ot">=</span> preds_lm_r2,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Lasso (Recipe 3)"</span> <span class="ot">=</span> preds_lasso_r3,</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Ridge (Recipe 3)"</span> <span class="ot">=</span> preds_ridge_r3,</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Decision Tree (Recipe 4)"</span> <span class="ot">=</span> preds_dt_r4</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">residual =</span> delivery_days <span class="sc">-</span> .pred)</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(best_preds, <span class="fu">aes</span>(<span class="at">x =</span> delivery_days, <span class="at">y =</span> .pred)) <span class="sc">+</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.25</span>, <span class="at">color =</span> <span class="st">"#2b8cbe"</span>) <span class="sc">+</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"#d95f02"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">"Predicted vs. Actual Delivery Days:"</span>, best_model_name),</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Points below the dashed 45-degree line indicate under-prediction on slower orders"</span>,</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Actual delivery_days (Test Set)"</span>,</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Predicted delivery_days"</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="modeling_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(best_preds, <span class="fu">aes</span>(<span class="at">x =</span> .pred, <span class="at">y =</span> residual)) <span class="sc">+</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.25</span>, <span class="at">color =</span> <span class="st">"#2b8cbe"</span>) <span class="sc">+</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"#d95f02"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">"Residuals vs. Predicted Delivery Days:"</span>, best_model_name),</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Positive residuals (above zero) show actual delivery days exceeding predictions"</span>,</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Predicted delivery_days"</span>,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Residual (Actual - Predicted Days)"</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="modeling_files/figure-html/unnamed-chunk-9-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>-Strong under-prediction on long-tail deliveries: In the predicted-vs.-actual plot for Ridge (Recipe 3), most predictions cluster between roughly 5 and 25 days, while a wide tail of actual deliveries stretches past 50 to over 150 days well below the 45-degree dashed line. Because the model predicts conditional averages on a right-skewed target, it systematically under-predicts severe delivery delays.</p>
+<p>-Positive skew in residuals: In the residuals-vs.-predicted plot, points lie mostly within roughly <span class="math inline">\(\pm 15\)</span> days around zero for typical predictions (~5–25 days), but large positive residuals (Actual - Predicted &gt; 0, extending up to ~150 days) appear whenever extreme delays occur.</p>
+<p>-Operational takeaway for management: Ridge (Recipe 3) tracks typical order timelines reasonably well, but a single point estimate will miss extreme outlier delays—so for customer ETA messaging or exception flagging, teams should pair point estimates with buffer windows or separate delay-risk monitoring rather than relying on average predictions alone</p>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Modeling"</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "Baseline regression, regularization, and decision tree models for Olist delivery_days"</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="fu"># Overview and Target / Leakage Guardrails</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>This page builds straightforward baseline models to predict <span class="in">`delivery_days`</span> (days from order purchase to customer delivery) using the cleaned dataset (<span class="in">`data/df_master_clean.rds`</span>) from <span class="in">`data.qmd`</span><span class="co">[</span><span class="ot">cite: 2, 3</span><span class="co">]</span>. Following the <span class="in">`tidymodels`</span> workflow from Weeks 8–12, we check target skewness first, split into training and testing sets, inspect numeric correlations and categorical groups on the training set, define four recipes, fit linear regression, Lasso, Ridge, and decision tree models, compare them against a naive baseline on the test set, and inspect diagnostic plots<span class="co">[</span><span class="ot">cite: 3</span><span class="co">]</span>.</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>Post-delivery or target-derived fields (such as <span class="in">`delayed_days`</span> or <span class="in">`delivered_status`</span>) are excluded from predictors, and all preprocessing steps (<span class="in">`step_other()`</span>, <span class="in">`step_dummy()`</span>, <span class="in">`step_normalize()`</span>) are learned inside <span class="in">`workflows`</span> fitted only on the training set<span class="co">[</span><span class="ot">cite: 2</span><span class="co">]</span>.</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidymodels)</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(corrplot)</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rpart.plot)</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>df_model <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/df_master_clean.rds"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">purchase_month =</span> <span class="fu">factor</span>(purchase_month),</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">customer_state =</span> <span class="fu">factor</span>(customer_state),</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">seller_state =</span> <span class="fu">factor</span>(seller_state),</span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">product_category_name_english =</span> <span class="fu">factor</span>(product_category_name_english)</span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>    delivery_days,</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>    freight_value,</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>    price,</span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>    product_weight_g,</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>    product_name_length,</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>    product_description_length,</span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>    product_photos_qty,</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>    customer_state,</span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>    seller_state,</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>    purchase_month,</span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>    product_category_name_english</span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a><span class="fu">## ## Step 1 Checking Skewness of `delivery_days` Before Splitting</span></span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a> Compares the mean, median, and <span class="in">`log10(delivery_days)`</span> histogram (noting the <span class="in">`18`</span> rows where <span class="in">`delivery_days == 0`</span>, since $\log_{10}(0)$ is undefined) to check whether <span class="in">`delivery_days`</span> is normal or right-skewed before modeling<span class="co">[</span><span class="ot">cite: 5, 7, 22, 66, 67</span><span class="co">]</span>.</span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-50"><a href="#cb16-50" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-51"><a href="#cb16-51" aria-hidden="true" tabindex="-1"></a>skew_check_tbl <span class="ot">&lt;-</span> df_model <span class="sc">|&gt;</span></span>
+<span id="cb16-52"><a href="#cb16-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb16-53"><a href="#cb16-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">min_days =</span> <span class="fu">min</span>(delivery_days),</span>
+<span id="cb16-54"><a href="#cb16-54" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_zero_days =</span> <span class="fu">sum</span>(delivery_days <span class="sc">==</span> <span class="dv">0</span>),</span>
+<span id="cb16-55"><a href="#cb16-55" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb16-56"><a href="#cb16-56" aria-hidden="true" tabindex="-1"></a>    <span class="at">median_days =</span> <span class="fu">median</span>(delivery_days),</span>
+<span id="cb16-57"><a href="#cb16-57" aria-hidden="true" tabindex="-1"></a>    <span class="at">max_days =</span> <span class="fu">max</span>(delivery_days),</span>
+<span id="cb16-58"><a href="#cb16-58" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_days =</span> <span class="fu">sd</span>(delivery_days),</span>
+<span id="cb16-59"><a href="#cb16-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_rows =</span> <span class="fu">n</span>()</span>
+<span id="cb16-60"><a href="#cb16-60" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb16-61"><a href="#cb16-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-62"><a href="#cb16-62" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb16-63"><a href="#cb16-63" aria-hidden="true" tabindex="-1"></a>  skew_check_tbl,</span>
+<span id="cb16-64"><a href="#cb16-64" aria-hidden="true" tabindex="-1"></a>  <span class="at">digits =</span> <span class="dv">2</span>,</span>
+<span id="cb16-65"><a href="#cb16-65" aria-hidden="true" tabindex="-1"></a>  <span class="at">format.args =</span> <span class="fu">list</span>(<span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb16-66"><a href="#cb16-66" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Min"</span>, <span class="st">"Zero-Day Rows"</span>, <span class="st">"Mean"</span>, <span class="st">"Median"</span>, <span class="st">"Max"</span>, <span class="st">"SD"</span>, <span class="st">"Rows"</span>),</span>
+<span id="cb16-67"><a href="#cb16-67" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Skewness check on delivery_days before train/test splitting"</span></span>
+<span id="cb16-68"><a href="#cb16-68" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-69"><a href="#cb16-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-70"><a href="#cb16-70" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_model <span class="sc">|&gt;</span> <span class="fu">filter</span>(delivery_days <span class="sc">&gt;</span> <span class="dv">0</span>), <span class="fu">aes</span>(<span class="at">x =</span> <span class="fu">log10</span>(delivery_days))) <span class="sc">+</span></span>
+<span id="cb16-71"><a href="#cb16-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">40</span>, <span class="at">fill =</span> <span class="st">"#1b9e77"</span>, <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">alpha =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb16-72"><a href="#cb16-72" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb16-73"><a href="#cb16-73" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"log10(delivery_days) Pulls in the Right Tail (Excluding 18 Zero-Day Rows)"</span>,</span>
+<span id="cb16-74"><a href="#cb16-74" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Distribution of positive delivery_days on a base-10 log scale"</span>,</span>
+<span id="cb16-75"><a href="#cb16-75" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"log10(delivery_days)"</span>,</span>
+<span id="cb16-76"><a href="#cb16-76" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Order-Item Count"</span></span>
+<span id="cb16-77"><a href="#cb16-77" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb16-78"><a href="#cb16-78" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb16-79"><a href="#cb16-79" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-80"><a href="#cb16-80" aria-hidden="true" tabindex="-1"></a> Across the 110,196 cleaned order-item rows, raw delivery_days is right-skewed—the mean (12.01 days) exceeds the median (10 days), the standard deviation is 9.45 days, and the upper tail reaches 209 days. While applying a $\log_{10}$ transformation (excluding the 18 zero-day deliveries where $\log_{10}(0)$ is undefined) pulls in that long right tail into a much more symmetric distribution, we keep delivery_days on its raw day scale so model evaluation metrics (RMSE and MAE) stay directly interpretable in days for a manager, while using step_normalize() inside our recipes to standardize predictor scales.</span>
+<span id="cb16-81"><a href="#cb16-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-82"><a href="#cb16-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-83"><a href="#cb16-83" aria-hidden="true" tabindex="-1"></a><span class="fu">## Step 2: Train / Test Split (`rsample`)</span></span>
+<span id="cb16-84"><a href="#cb16-84" aria-hidden="true" tabindex="-1"></a> Splits <span class="in">`df_model`</span> into an 80% training set and a 20% test set with a fixed seed (<span class="in">`123`</span>) so all exploratory checks and model fits happen on the training set while the test set stays held out for evaluation<span class="co">[</span><span class="ot">cite: 25, 57</span><span class="co">]</span>.</span>
+<span id="cb16-85"><a href="#cb16-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-86"><a href="#cb16-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-89"><a href="#cb16-89" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-90"><a href="#cb16-90" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb16-91"><a href="#cb16-91" aria-hidden="true" tabindex="-1"></a>delivery_split <span class="ot">&lt;-</span> <span class="fu">initial_split</span>(df_model, <span class="at">prop =</span> <span class="fl">0.80</span>)</span>
+<span id="cb16-92"><a href="#cb16-92" aria-hidden="true" tabindex="-1"></a>delivery_train <span class="ot">&lt;-</span> <span class="fu">training</span>(delivery_split)</span>
+<span id="cb16-93"><a href="#cb16-93" aria-hidden="true" tabindex="-1"></a>delivery_test  <span class="ot">&lt;-</span> <span class="fu">testing</span>(delivery_split)</span>
+<span id="cb16-94"><a href="#cb16-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-95"><a href="#cb16-95" aria-hidden="true" tabindex="-1"></a>split_summary <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb16-96"><a href="#cb16-96" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="fu">c</span>(<span class="st">"Training Set"</span>, <span class="st">"Testing Set"</span>),</span>
+<span id="cb16-97"><a href="#cb16-97" aria-hidden="true" tabindex="-1"></a>  <span class="at">rows =</span> <span class="fu">c</span>(<span class="fu">nrow</span>(delivery_train), <span class="fu">nrow</span>(delivery_test)),</span>
+<span id="cb16-98"><a href="#cb16-98" aria-hidden="true" tabindex="-1"></a>  <span class="at">share_pct =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> <span class="fu">c</span>(<span class="fu">nrow</span>(delivery_train), <span class="fu">nrow</span>(delivery_test)) <span class="sc">/</span> <span class="fu">nrow</span>(df_model), <span class="dv">1</span>)</span>
+<span id="cb16-99"><a href="#cb16-99" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-100"><a href="#cb16-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-101"><a href="#cb16-101" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb16-102"><a href="#cb16-102" aria-hidden="true" tabindex="-1"></a>  split_summary,</span>
+<span id="cb16-103"><a href="#cb16-103" aria-hidden="true" tabindex="-1"></a>  <span class="at">format.args =</span> <span class="fu">list</span>(<span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb16-104"><a href="#cb16-104" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Dataset"</span>, <span class="st">"Row Count"</span>, <span class="st">"Share (%)"</span>),</span>
+<span id="cb16-105"><a href="#cb16-105" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"80/20 train-test split counts"</span></span>
+<span id="cb16-106"><a href="#cb16-106" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-107"><a href="#cb16-107" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-108"><a href="#cb16-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-109"><a href="#cb16-109" aria-hidden="true" tabindex="-1"></a> Using a reproducible 80/20 split (set.seed(123)), we allocate 88,156 order-item rows (80%) to delivery_train for exploratory checks, preprocessing, and model fitting, while holding out 22,040 rows (20%) in delivery_test so final evaluation metrics reflect unseen data without leakage</span>
+<span id="cb16-110"><a href="#cb16-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-111"><a href="#cb16-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-112"><a href="#cb16-112" aria-hidden="true" tabindex="-1"></a><span class="fu">## Step 3: Numeric Correlations and Categorical Summaries (on Training Data)</span></span>
+<span id="cb16-113"><a href="#cb16-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-114"><a href="#cb16-114" aria-hidden="true" tabindex="-1"></a> Computes correlations among <span class="in">`delivery_days`</span> and numeric predictors on <span class="in">`delivery_train`</span> via <span class="in">`cor()`</span> and <span class="in">`corrplot()`</span><span class="co">[</span><span class="ot">cite: 23, 24</span><span class="co">]</span>, and summarizes <span class="in">`delivery_days`</span> across <span class="in">`customer_state`</span> using <span class="in">`group_by()`</span> and <span class="in">`summarise()`</span><span class="co">[</span><span class="ot">cite: 5</span><span class="co">]</span>.</span>
+<span id="cb16-115"><a href="#cb16-115" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-118"><a href="#cb16-118" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-119"><a href="#cb16-119" aria-hidden="true" tabindex="-1"></a>num_cor_mat <span class="ot">&lt;-</span> delivery_train <span class="sc">|&gt;</span></span>
+<span id="cb16-120"><a href="#cb16-120" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(delivery_days, freight_value, price, product_weight_g, product_photos_qty) <span class="sc">|&gt;</span></span>
+<span id="cb16-121"><a href="#cb16-121" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cor</span>(<span class="at">use =</span> <span class="st">"complete.obs"</span>)</span>
+<span id="cb16-122"><a href="#cb16-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-123"><a href="#cb16-123" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(num_cor_mat, <span class="dv">3</span>)</span>
+<span id="cb16-124"><a href="#cb16-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-125"><a href="#cb16-125" aria-hidden="true" tabindex="-1"></a><span class="fu">corrplot</span>(</span>
+<span id="cb16-126"><a href="#cb16-126" aria-hidden="true" tabindex="-1"></a>  num_cor_mat,</span>
+<span id="cb16-127"><a href="#cb16-127" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"color"</span>,</span>
+<span id="cb16-128"><a href="#cb16-128" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"upper"</span>,</span>
+<span id="cb16-129"><a href="#cb16-129" aria-hidden="true" tabindex="-1"></a>  <span class="at">addCoef.col =</span> <span class="st">"black"</span>,</span>
+<span id="cb16-130"><a href="#cb16-130" aria-hidden="true" tabindex="-1"></a>  <span class="at">number.cex =</span> <span class="fl">0.75</span>,</span>
+<span id="cb16-131"><a href="#cb16-131" aria-hidden="true" tabindex="-1"></a>  <span class="at">tl.cex =</span> <span class="fl">0.85</span>,</span>
+<span id="cb16-132"><a href="#cb16-132" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">"Correlations Among delivery_days and Key Numeric Predictors"</span>,</span>
+<span id="cb16-133"><a href="#cb16-133" aria-hidden="true" tabindex="-1"></a>  <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">0</span>)</span>
+<span id="cb16-134"><a href="#cb16-134" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-135"><a href="#cb16-135" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-136"><a href="#cb16-136" aria-hidden="true" tabindex="-1"></a> Among the numeric predictors in delivery_train, freight_value has the strongest linear correlation with delivery_days ($r = 0.213$), followed weakly by product_weight_g ($r = 0.087$) and price ($r = 0.062$), while product_photos_qty is essentially flat ($r = -0.025$). Notice also that freight_value correlates moderately with product_weight_g ($r = 0.602$) and price ($r = 0.407$), which makes regularized models (Lasso and Ridge) useful when combining correlated item attributes alongside geography and timing.</span>
+<span id="cb16-137"><a href="#cb16-137" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-138"><a href="#cb16-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-141"><a href="#cb16-141" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-142"><a href="#cb16-142" aria-hidden="true" tabindex="-1"></a>cat_state_summary <span class="ot">&lt;-</span> delivery_train <span class="sc">|&gt;</span></span>
+<span id="cb16-143"><a href="#cb16-143" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(customer_state) <span class="sc">|&gt;</span></span>
+<span id="cb16-144"><a href="#cb16-144" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb16-145"><a href="#cb16-145" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_rows =</span> <span class="fu">n</span>(),</span>
+<span id="cb16-146"><a href="#cb16-146" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_days =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb16-147"><a href="#cb16-147" aria-hidden="true" tabindex="-1"></a>    <span class="at">median_days =</span> <span class="fu">median</span>(delivery_days),</span>
+<span id="cb16-148"><a href="#cb16-148" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb16-149"><a href="#cb16-149" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb16-150"><a href="#cb16-150" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(mean_days))</span>
+<span id="cb16-151"><a href="#cb16-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-152"><a href="#cb16-152" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb16-153"><a href="#cb16-153" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(cat_state_summary, <span class="dv">10</span>),</span>
+<span id="cb16-154"><a href="#cb16-154" aria-hidden="true" tabindex="-1"></a>  <span class="at">digits =</span> <span class="dv">2</span>,</span>
+<span id="cb16-155"><a href="#cb16-155" aria-hidden="true" tabindex="-1"></a>  <span class="at">format.args =</span> <span class="fu">list</span>(<span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb16-156"><a href="#cb16-156" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Customer State"</span>, <span class="st">"Training Rows"</span>, <span class="st">"Mean Days"</span>, <span class="st">"Median Days"</span>),</span>
+<span id="cb16-157"><a href="#cb16-157" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Top 10 customer states by mean delivery_days in training data"</span></span>
+<span id="cb16-158"><a href="#cb16-158" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-159"><a href="#cb16-159" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-160"><a href="#cb16-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-161"><a href="#cb16-161" aria-hidden="true" tabindex="-1"></a> In the training set, remote northern and northeastern destination states experience substantially longer transit times than the overall 12.01-day average—led by AP (mean 30.03 days, median 24.5 days across 60 rows), RR (mean 29.59 days, median 25.5 days across 32 rows), and AM (mean 25.73 days, median 25.0 days across 130 rows). Notice also that several of these slower states have very small sample sizes (under 2% of the 88,156 training rows, i.e., fewer than ~1,763 rows), which is why step_other(threshold = 0.02) groups low-frequency states into an "other" bucket before creating dummy variables so models do not overfit sparse state indicators.</span>
+<span id="cb16-162"><a href="#cb16-162" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-163"><a href="#cb16-163" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb16-164"><a href="#cb16-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-165"><a href="#cb16-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-166"><a href="#cb16-166" aria-hidden="true" tabindex="-1"></a><span class="fu">## Step 4: Defining Four Recipes (`recipes`)</span></span>
+<span id="cb16-167"><a href="#cb16-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-168"><a href="#cb16-168" aria-hidden="true" tabindex="-1"></a>Defines four recipes with progressive predictor sets and uses <span class="in">`step_normalize()`</span> on numeric predictors (plus <span class="in">`step_other()`</span> and <span class="in">`step_dummy()`</span> on categorical predictors) inside the recipe pipeline<span class="co">[</span><span class="ot">cite: 6, 7, 27</span><span class="co">]</span>. Because <span class="in">`step_dummy()`</span> converts categorical columns into numeric <span class="in">`0/1`</span> indicator columns, Lasso and Ridge (<span class="in">`glmnet`</span>) can use recipes that include dummy-encoded categorical predictors<span class="co">[</span><span class="ot">cite: 7, 9, 27, 49</span><span class="co">]</span>.</span>
+<span id="cb16-169"><a href="#cb16-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-172"><a href="#cb16-172" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-173"><a href="#cb16-173" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 1: Simple numeric recipe (freight and weight)</span></span>
+<span id="cb16-174"><a href="#cb16-174" aria-hidden="true" tabindex="-1"></a>recipe_1 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(delivery_days <span class="sc">~</span> freight_value <span class="sc">+</span> product_weight_g, <span class="at">data =</span> delivery_train) <span class="sc">|&gt;</span></span>
+<span id="cb16-175"><a href="#cb16-175" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_normalize</span>(<span class="fu">all_numeric_predictors</span>())</span>
+<span id="cb16-176"><a href="#cb16-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-177"><a href="#cb16-177" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 2: Pick-and-choose geography + purchase month</span></span>
+<span id="cb16-178"><a href="#cb16-178" aria-hidden="true" tabindex="-1"></a>recipe_2 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(delivery_days <span class="sc">~</span> customer_state <span class="sc">+</span> seller_state <span class="sc">+</span> purchase_month, <span class="at">data =</span> delivery_train) <span class="sc">|&gt;</span></span>
+<span id="cb16-179"><a href="#cb16-179" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_other</span>(<span class="fu">all_nominal_predictors</span>(), <span class="at">threshold =</span> <span class="fl">0.02</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-180"><a href="#cb16-180" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_dummy</span>(<span class="fu">all_nominal_predictors</span>())</span>
+<span id="cb16-181"><a href="#cb16-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-182"><a href="#cb16-182" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 3: Combined numeric + geography + month</span></span>
+<span id="cb16-183"><a href="#cb16-183" aria-hidden="true" tabindex="-1"></a>recipe_3 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(</span>
+<span id="cb16-184"><a href="#cb16-184" aria-hidden="true" tabindex="-1"></a>  delivery_days <span class="sc">~</span> freight_value <span class="sc">+</span> product_weight_g <span class="sc">+</span> customer_state <span class="sc">+</span> seller_state <span class="sc">+</span> purchase_month,</span>
+<span id="cb16-185"><a href="#cb16-185" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> delivery_train</span>
+<span id="cb16-186"><a href="#cb16-186" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb16-187"><a href="#cb16-187" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_other</span>(<span class="fu">all_nominal_predictors</span>(), <span class="at">threshold =</span> <span class="fl">0.02</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-188"><a href="#cb16-188" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_dummy</span>(<span class="fu">all_nominal_predictors</span>()) <span class="sc">|&gt;</span></span>
+<span id="cb16-189"><a href="#cb16-189" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_normalize</span>(<span class="fu">all_numeric_predictors</span>())</span>
+<span id="cb16-190"><a href="#cb16-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-191"><a href="#cb16-191" aria-hidden="true" tabindex="-1"></a><span class="co"># Recipe 4: Broader set adding product category and item price</span></span>
+<span id="cb16-192"><a href="#cb16-192" aria-hidden="true" tabindex="-1"></a>recipe_4 <span class="ot">&lt;-</span> <span class="fu">recipe</span>(</span>
+<span id="cb16-193"><a href="#cb16-193" aria-hidden="true" tabindex="-1"></a>  delivery_days <span class="sc">~</span> freight_value <span class="sc">+</span> price <span class="sc">+</span> product_weight_g <span class="sc">+</span> customer_state <span class="sc">+</span> seller_state <span class="sc">+</span></span>
+<span id="cb16-194"><a href="#cb16-194" aria-hidden="true" tabindex="-1"></a>    purchase_month <span class="sc">+</span> product_category_name_english,</span>
+<span id="cb16-195"><a href="#cb16-195" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> delivery_train</span>
+<span id="cb16-196"><a href="#cb16-196" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb16-197"><a href="#cb16-197" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_other</span>(<span class="fu">all_nominal_predictors</span>(), <span class="at">threshold =</span> <span class="fl">0.02</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-198"><a href="#cb16-198" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_dummy</span>(<span class="fu">all_nominal_predictors</span>()) <span class="sc">|&gt;</span></span>
+<span id="cb16-199"><a href="#cb16-199" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_normalize</span>(<span class="fu">all_numeric_predictors</span>())</span>
+<span id="cb16-200"><a href="#cb16-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-201"><a href="#cb16-201" aria-hidden="true" tabindex="-1"></a>recipe_1</span>
+<span id="cb16-202"><a href="#cb16-202" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-203"><a href="#cb16-203" aria-hidden="true" tabindex="-1"></a> Moving from <span class="in">`recipe_1`</span> (2 numeric predictors) through <span class="in">`recipe_2`</span> (geography and month) and <span class="in">`recipe_3`</span> (combined core features) to <span class="in">`recipe_4`</span> (adding category and price) tests whether richer inputs reduce out-of-sample error<span class="co">[</span><span class="ot">cite: 27, 32</span><span class="co">]</span>.</span>
+<span id="cb16-204"><a href="#cb16-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-205"><a href="#cb16-205" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb16-206"><a href="#cb16-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-207"><a href="#cb16-207" aria-hidden="true" tabindex="-1"></a><span class="fu">## Step 5: Naive Baseline and Model Specifications (`parsnip` + `workflows`)</span></span>
+<span id="cb16-208"><a href="#cb16-208" aria-hidden="true" tabindex="-1"></a> Computes a naive baseline (predicting the training mean <span class="in">`delivery_days`</span> on <span class="in">`delivery_test`</span>) and fits targeted <span class="in">`parsnip`</span> workflows—Linear Regression (<span class="in">`lm`</span>) on <span class="in">`recipe_1`</span> and <span class="in">`recipe_2`</span>, Lasso (<span class="in">`glmnet`</span>, <span class="in">`mixture = 1`</span>) and Ridge (<span class="in">`glmnet`</span>, <span class="in">`mixture = 0`</span>) on <span class="in">`recipe_3`</span>, and Decision Tree (<span class="in">`rpart`</span>) on <span class="in">`recipe_4`</span>—on <span class="in">`delivery_train`</span> only<span class="co">[</span><span class="ot">cite: 11, 27, 28, 49</span><span class="co">]</span></span>
+<span id="cb16-209"><a href="#cb16-209" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-212"><a href="#cb16-212" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-213"><a href="#cb16-213" aria-hidden="true" tabindex="-1"></a>naive_mean_days <span class="ot">&lt;-</span> <span class="fu">mean</span>(delivery_train<span class="sc">$</span>delivery_days)</span>
+<span id="cb16-214"><a href="#cb16-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-215"><a href="#cb16-215" aria-hidden="true" tabindex="-1"></a>naive_preds <span class="ot">&lt;-</span> delivery_test <span class="sc">|&gt;</span></span>
+<span id="cb16-216"><a href="#cb16-216" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">.pred =</span> naive_mean_days)</span>
+<span id="cb16-217"><a href="#cb16-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-218"><a href="#cb16-218" aria-hidden="true" tabindex="-1"></a>naive_metrics <span class="ot">&lt;-</span> naive_preds <span class="sc">|&gt;</span></span>
+<span id="cb16-219"><a href="#cb16-219" aria-hidden="true" tabindex="-1"></a>  <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span></span>
+<span id="cb16-220"><a href="#cb16-220" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Naive Baseline (Train Mean)"</span>)</span>
+<span id="cb16-221"><a href="#cb16-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-222"><a href="#cb16-222" aria-hidden="true" tabindex="-1"></a>lm_spec <span class="ot">&lt;-</span> <span class="fu">linear_reg</span>() <span class="sc">|&gt;</span></span>
+<span id="cb16-223"><a href="#cb16-223" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"lm"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-224"><a href="#cb16-224" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb16-225"><a href="#cb16-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-226"><a href="#cb16-226" aria-hidden="true" tabindex="-1"></a>lasso_spec <span class="ot">&lt;-</span> <span class="fu">linear_reg</span>(<span class="at">penalty =</span> <span class="fl">0.1</span>, <span class="at">mixture =</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-227"><a href="#cb16-227" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"glmnet"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-228"><a href="#cb16-228" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb16-229"><a href="#cb16-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-230"><a href="#cb16-230" aria-hidden="true" tabindex="-1"></a>ridge_spec <span class="ot">&lt;-</span> <span class="fu">linear_reg</span>(<span class="at">penalty =</span> <span class="fl">0.1</span>, <span class="at">mixture =</span> <span class="dv">0</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-231"><a href="#cb16-231" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"glmnet"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-232"><a href="#cb16-232" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb16-233"><a href="#cb16-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-234"><a href="#cb16-234" aria-hidden="true" tabindex="-1"></a>dt_spec <span class="ot">&lt;-</span> <span class="fu">decision_tree</span>(<span class="at">cost_complexity =</span> <span class="fl">0.001</span>, <span class="at">tree_depth =</span> <span class="dv">6</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-235"><a href="#cb16-235" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">"rpart"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-236"><a href="#cb16-236" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_mode</span>(<span class="st">"regression"</span>)</span>
+<span id="cb16-237"><a href="#cb16-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-238"><a href="#cb16-238" aria-hidden="true" tabindex="-1"></a>wf_lm_r1 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb16-239"><a href="#cb16-239" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_1) <span class="sc">|&gt;</span></span>
+<span id="cb16-240"><a href="#cb16-240" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(lm_spec) <span class="sc">|&gt;</span></span>
+<span id="cb16-241"><a href="#cb16-241" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb16-242"><a href="#cb16-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-243"><a href="#cb16-243" aria-hidden="true" tabindex="-1"></a>wf_lm_r2 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb16-244"><a href="#cb16-244" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_2) <span class="sc">|&gt;</span></span>
+<span id="cb16-245"><a href="#cb16-245" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(lm_spec) <span class="sc">|&gt;</span></span>
+<span id="cb16-246"><a href="#cb16-246" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb16-247"><a href="#cb16-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-248"><a href="#cb16-248" aria-hidden="true" tabindex="-1"></a>wf_lasso_r3 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb16-249"><a href="#cb16-249" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_3) <span class="sc">|&gt;</span></span>
+<span id="cb16-250"><a href="#cb16-250" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(lasso_spec) <span class="sc">|&gt;</span></span>
+<span id="cb16-251"><a href="#cb16-251" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb16-252"><a href="#cb16-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-253"><a href="#cb16-253" aria-hidden="true" tabindex="-1"></a>wf_ridge_r3 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb16-254"><a href="#cb16-254" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_3) <span class="sc">|&gt;</span></span>
+<span id="cb16-255"><a href="#cb16-255" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(ridge_spec) <span class="sc">|&gt;</span></span>
+<span id="cb16-256"><a href="#cb16-256" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb16-257"><a href="#cb16-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-258"><a href="#cb16-258" aria-hidden="true" tabindex="-1"></a>wf_dt_r4 <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">|&gt;</span></span>
+<span id="cb16-259"><a href="#cb16-259" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(recipe_4) <span class="sc">|&gt;</span></span>
+<span id="cb16-260"><a href="#cb16-260" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(dt_spec) <span class="sc">|&gt;</span></span>
+<span id="cb16-261"><a href="#cb16-261" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit</span>(<span class="at">data =</span> delivery_train)</span>
+<span id="cb16-262"><a href="#cb16-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-263"><a href="#cb16-263" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(wf_lm_r1)</span>
+<span id="cb16-264"><a href="#cb16-264" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-265"><a href="#cb16-265" aria-hidden="true" tabindex="-1"></a> In the simple numeric linear model (wf_lm_r1 on recipe_1, where predictors are normalized to mean 0 and SD 1), the intercept is about 12.01 days at average freight_value and product_weight_g. A 1-SD increase in freight_value is associated with roughly +2.41 more delivery days ($p &lt; 2.2 \times 10^{-16}$), whereas a 1-SD increase in product_weight_g has a small negative coefficient of about $-0.62$ days ($p = 1.70 \times 10^{-56}$) once freight_value is held constant—reflecting the correlation between weight and freight cost seen earlier, as well as why simple two-feature linear models have limitations before adding geography, timing, and item details.</span>
+<span id="cb16-266"><a href="#cb16-266" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-267"><a href="#cb16-267" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb16-268"><a href="#cb16-268" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-271"><a href="#cb16-271" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-272"><a href="#cb16-272" aria-hidden="true" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">"data"</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-273"><a href="#cb16-273" aria-hidden="true" tabindex="-1"></a><span class="fu">write_rds</span>(delivery_train, <span class="st">"data/delivery_train.rds"</span>)</span>
+<span id="cb16-274"><a href="#cb16-274" aria-hidden="true" tabindex="-1"></a><span class="fu">write_rds</span>(wf_ridge_r3, <span class="st">"data/wf_ridge_r3.rds"</span>)</span>
+<span id="cb16-275"><a href="#cb16-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-276"><a href="#cb16-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-277"><a href="#cb16-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-278"><a href="#cb16-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-279"><a href="#cb16-279" aria-hidden="true" tabindex="-1"></a><span class="fu">## Step 6: Test-Set Predictions, Model Comparison (`RMSE`, `MAE`, `R²`), and Diagnostics </span></span>
+<span id="cb16-280"><a href="#cb16-280" aria-hidden="true" tabindex="-1"></a> Evaluates all models on <span class="in">`delivery_test`</span> using <span class="in">`rmse`</span>, <span class="in">`mae`</span>, and <span class="in">`rsq`</span> (all in raw days for <span class="in">`RMSE`</span> and <span class="in">`MAE`</span>), and plots predicted vs. actual values, residuals, and the decision tree<span class="co">[</span><span class="ot">cite: 29, 31, 50, 54, 60</span><span class="co">]</span></span>
+<span id="cb16-281"><a href="#cb16-281" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-284"><a href="#cb16-284" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-285"><a href="#cb16-285" aria-hidden="true" tabindex="-1"></a>preds_lm_r1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_lm_r1, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb16-286"><a href="#cb16-286" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb16-287"><a href="#cb16-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-288"><a href="#cb16-288" aria-hidden="true" tabindex="-1"></a>preds_lm_r2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_lm_r2, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb16-289"><a href="#cb16-289" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb16-290"><a href="#cb16-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-291"><a href="#cb16-291" aria-hidden="true" tabindex="-1"></a>preds_lasso_r3 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_lasso_r3, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb16-292"><a href="#cb16-292" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb16-293"><a href="#cb16-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-294"><a href="#cb16-294" aria-hidden="true" tabindex="-1"></a>preds_ridge_r3 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_ridge_r3, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb16-295"><a href="#cb16-295" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb16-296"><a href="#cb16-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-297"><a href="#cb16-297" aria-hidden="true" tabindex="-1"></a>preds_dt_r4 <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_dt_r4, <span class="at">new_data =</span> delivery_test) <span class="sc">|&gt;</span></span>
+<span id="cb16-298"><a href="#cb16-298" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(delivery_test)</span>
+<span id="cb16-299"><a href="#cb16-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-300"><a href="#cb16-300" aria-hidden="true" tabindex="-1"></a>m_lm_r1    <span class="ot">&lt;-</span> preds_lm_r1    <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"LM (Recipe 1)"</span>)</span>
+<span id="cb16-301"><a href="#cb16-301" aria-hidden="true" tabindex="-1"></a>m_lm_r2    <span class="ot">&lt;-</span> preds_lm_r2    <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"LM (Recipe 2)"</span>)</span>
+<span id="cb16-302"><a href="#cb16-302" aria-hidden="true" tabindex="-1"></a>m_lasso_r3 <span class="ot">&lt;-</span> preds_lasso_r3 <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Lasso (Recipe 3)"</span>)</span>
+<span id="cb16-303"><a href="#cb16-303" aria-hidden="true" tabindex="-1"></a>m_ridge_r3 <span class="ot">&lt;-</span> preds_ridge_r3 <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Ridge (Recipe 3)"</span>)</span>
+<span id="cb16-304"><a href="#cb16-304" aria-hidden="true" tabindex="-1"></a>m_dt_r4    <span class="ot">&lt;-</span> preds_dt_r4    <span class="sc">|&gt;</span> <span class="fu">metrics</span>(<span class="at">truth =</span> delivery_days, <span class="at">estimate =</span> .pred) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Decision Tree (Recipe 4)"</span>)</span>
+<span id="cb16-305"><a href="#cb16-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-306"><a href="#cb16-306" aria-hidden="true" tabindex="-1"></a>all_metrics <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(naive_metrics, m_lm_r1, m_lm_r2, m_lasso_r3, m_ridge_r3, m_dt_r4) <span class="sc">|&gt;</span></span>
+<span id="cb16-307"><a href="#cb16-307" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(model, .metric, .estimate) <span class="sc">|&gt;</span></span>
+<span id="cb16-308"><a href="#cb16-308" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> .metric, <span class="at">values_from =</span> .estimate) <span class="sc">|&gt;</span></span>
+<span id="cb16-309"><a href="#cb16-309" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(rmse)</span>
+<span id="cb16-310"><a href="#cb16-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-311"><a href="#cb16-311" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
+<span id="cb16-312"><a href="#cb16-312" aria-hidden="true" tabindex="-1"></a>  all_metrics,</span>
+<span id="cb16-313"><a href="#cb16-313" aria-hidden="true" tabindex="-1"></a>  <span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb16-314"><a href="#cb16-314" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Model"</span>, <span class="st">"RMSE (Days)"</span>, <span class="st">"R²"</span>, <span class="st">"MAE (Days)"</span>),</span>
+<span id="cb16-315"><a href="#cb16-315" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Test-set performance across baseline and candidate models (lower RMSE/MAE is better; higher R² is better)"</span></span>
+<span id="cb16-316"><a href="#cb16-316" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-317"><a href="#cb16-317" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb16-318"><a href="#cb16-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-319"><a href="#cb16-319" aria-hidden="true" tabindex="-1"></a> -Best overall baseline performance: Ridge (Recipe 3) leads the test set on both RMSE (7.862 days) and $R^2$ (0.251), while tying closely with Decision Tree (Recipe 4) on MAE (5.224 days vs. 5.222 days). Compared to the naive training-mean baseline (RMSE 9.085 days, MAE 6.286 days), Ridge (Recipe 3) cuts RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%).  </span>
+<span id="cb16-320"><a href="#cb16-320" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-321"><a href="#cb16-321" aria-hidden="true" tabindex="-1"></a> -Geography and purchase month carry the biggest lift: LM (Recipe 2)—using only customer_state, seller_state, and purchase_month—reaches 7.889 days RMSE, 5.260 days MAE, and 0.246 $R^2$, far outperforming LM (Recipe 1) (RMSE 8.872 days, MAE 6.060 days, $R^2$ 0.046), which uses only normalized freight_value and product_weight_g.  </span>
+<span id="cb16-322"><a href="#cb16-322" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-323"><a href="#cb16-323" aria-hidden="true" tabindex="-1"></a> -Close race among richer baseline models: Ridge (Recipe 3), LM (Recipe 2), Lasso (Recipe 3; RMSE 7.891 days, MAE 5.243 days, $R^2$ 0.246), and Decision Tree (Recipe 4; RMSE 7.937 days, MAE 5.222 days, $R^2$ 0.237) all cluster tightly around ~7.86–7.94 days RMSE and ~5.22–5.26 days MAE.  </span>
+<span id="cb16-324"><a href="#cb16-324" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-325"><a href="#cb16-325" aria-hidden="true" tabindex="-1"></a> -Practical takeaway for management: Adding origin/destination geography and timing explains roughly a quarter of test-set variance ($R^2 \approx 0.25$) and trims typical absolute error by ~1.06 days per item compared to a constant average, though ~5.2 days of average error and ~7.9 days of RMSE still leave room for unmeasured transit/carrier factors and extreme tail delays.</span>
+<span id="cb16-326"><a href="#cb16-326" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-327"><a href="#cb16-327" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-330"><a href="#cb16-330" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb16-331"><a href="#cb16-331" aria-hidden="true" tabindex="-1"></a>best_model_name <span class="ot">&lt;-</span> all_metrics<span class="sc">$</span>model[<span class="dv">1</span>]</span>
+<span id="cb16-332"><a href="#cb16-332" aria-hidden="true" tabindex="-1"></a>best_preds <span class="ot">&lt;-</span> <span class="cf">switch</span>(</span>
+<span id="cb16-333"><a href="#cb16-333" aria-hidden="true" tabindex="-1"></a>  best_model_name,</span>
+<span id="cb16-334"><a href="#cb16-334" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Naive Baseline (Train Mean)"</span> <span class="ot">=</span> naive_preds,</span>
+<span id="cb16-335"><a href="#cb16-335" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LM (Recipe 1)"</span> <span class="ot">=</span> preds_lm_r1,</span>
+<span id="cb16-336"><a href="#cb16-336" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LM (Recipe 2)"</span> <span class="ot">=</span> preds_lm_r2,</span>
+<span id="cb16-337"><a href="#cb16-337" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Lasso (Recipe 3)"</span> <span class="ot">=</span> preds_lasso_r3,</span>
+<span id="cb16-338"><a href="#cb16-338" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Ridge (Recipe 3)"</span> <span class="ot">=</span> preds_ridge_r3,</span>
+<span id="cb16-339"><a href="#cb16-339" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Decision Tree (Recipe 4)"</span> <span class="ot">=</span> preds_dt_r4</span>
+<span id="cb16-340"><a href="#cb16-340" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb16-341"><a href="#cb16-341" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">residual =</span> delivery_days <span class="sc">-</span> .pred)</span>
+<span id="cb16-342"><a href="#cb16-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-343"><a href="#cb16-343" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(best_preds, <span class="fu">aes</span>(<span class="at">x =</span> delivery_days, <span class="at">y =</span> .pred)) <span class="sc">+</span></span>
+<span id="cb16-344"><a href="#cb16-344" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.25</span>, <span class="at">color =</span> <span class="st">"#2b8cbe"</span>) <span class="sc">+</span></span>
+<span id="cb16-345"><a href="#cb16-345" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"#d95f02"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb16-346"><a href="#cb16-346" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb16-347"><a href="#cb16-347" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">"Predicted vs. Actual Delivery Days:"</span>, best_model_name),</span>
+<span id="cb16-348"><a href="#cb16-348" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Points below the dashed 45-degree line indicate under-prediction on slower orders"</span>,</span>
+<span id="cb16-349"><a href="#cb16-349" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Actual delivery_days (Test Set)"</span>,</span>
+<span id="cb16-350"><a href="#cb16-350" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Predicted delivery_days"</span></span>
+<span id="cb16-351"><a href="#cb16-351" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb16-352"><a href="#cb16-352" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb16-353"><a href="#cb16-353" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-354"><a href="#cb16-354" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(best_preds, <span class="fu">aes</span>(<span class="at">x =</span> .pred, <span class="at">y =</span> residual)) <span class="sc">+</span></span>
+<span id="cb16-355"><a href="#cb16-355" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.25</span>, <span class="at">color =</span> <span class="st">"#2b8cbe"</span>) <span class="sc">+</span></span>
+<span id="cb16-356"><a href="#cb16-356" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"#d95f02"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb16-357"><a href="#cb16-357" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb16-358"><a href="#cb16-358" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">"Residuals vs. Predicted Delivery Days:"</span>, best_model_name),</span>
+<span id="cb16-359"><a href="#cb16-359" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Positive residuals (above zero) show actual delivery days exceeding predictions"</span>,</span>
+<span id="cb16-360"><a href="#cb16-360" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Predicted delivery_days"</span>,</span>
+<span id="cb16-361"><a href="#cb16-361" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Residual (Actual - Predicted Days)"</span></span>
+<span id="cb16-362"><a href="#cb16-362" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb16-363"><a href="#cb16-363" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb16-364"><a href="#cb16-364" aria-hidden="true" tabindex="-1"></a><span class="in">```</span> </span>
+<span id="cb16-365"><a href="#cb16-365" aria-hidden="true" tabindex="-1"></a> -Strong under-prediction on long-tail deliveries: In the predicted-vs.-actual plot for Ridge (Recipe 3), most predictions cluster between roughly 5 and 25 days, while a wide tail of actual deliveries stretches past 50 to over 150 days well below the 45-degree dashed line. Because the model predicts conditional averages on a right-skewed target, it systematically under-predicts severe delivery delays.</span>
+<span id="cb16-366"><a href="#cb16-366" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-367"><a href="#cb16-367" aria-hidden="true" tabindex="-1"></a> -Positive skew in residuals: In the residuals-vs.-predicted plot, points lie mostly within roughly $\pm 15$ days around zero for typical predictions (~5–25 days), but large positive residuals (Actual - Predicted &gt; 0, extending up to ~150 days) appear whenever extreme delays occur.</span>
+<span id="cb16-368"><a href="#cb16-368" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb16-369"><a href="#cb16-369" aria-hidden="true" tabindex="-1"></a> -Operational takeaway for management: Ridge (Recipe 3) tracks typical order timelines reasonably well, but a single point estimate will miss extreme outlier delays—so for customer ETA messaging or exception flagging, teams should pair point estimates with buffer windows or separate delay-risk monitoring rather than relying on average predictions alone</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

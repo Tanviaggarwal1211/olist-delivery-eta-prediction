@@ -289,6 +289,4 @@ ggplot(weight_freight_tbl, aes(x = weight_group, y = mean_days, fill = weight_gr
 **Small counts in remote states & non-predictive outcome fields:** Low order counts in remote states increase variance of raw averages, and post-delivery fields (`delayed_days`, `delivered_status`) are excluded from feature exploration to avoid leakage.
 
 
-
-
   
