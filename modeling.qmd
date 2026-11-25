@@ -1,50 +1,58 @@
 ---
 title: "Modeling"
-subtitle: "Baseline regression, regularization, and decision tree models for Olist delivery_days"
+subtitle: "Predicting Olist delivery_days with linear, regularized, and decision tree models"
+execute:
+  warning: false
+  message: false
 ---
 
 # Overview and Target / Leakage Guardrails
 
-This page builds straightforward baseline models to predict `delivery_days` (days from order purchase to customer delivery) using the cleaned dataset (`data/df_master_clean.rds`) from `data.qmd`[cite: 2, 3]. Following the `tidymodels` workflow from Weeks 8–12, we check target skewness first, split into training and testing sets, inspect numeric correlations and categorical groups on the training set, define four recipes, fit linear regression, Lasso, Ridge, and decision tree models, compare them against a naive baseline on the test set, and inspect diagnostic plots[cite: 3].
+This analysis builds models that predict `delivery_days` (days from order purchase to customer delivery) using only information that is available when an order is placed or approved. It starts from the cleaned order-item dataset prepared on the Data page, engineers route, product, and timing features, and compares **three feature recipes** across **four model families**, plus benchmarks, on a held-out test set.
 
-Post-delivery or target-derived fields (such as `delayed_days` or `delivered_status`) are excluded from predictors, and all preprocessing steps (`step_other()`, `step_dummy()`, `step_normalize()`) are learned inside `workflows` fitted only on the training set[cite: 2].
+**Design choices**
+
+- **Split by order, not by row.** The data has one row per order *item*, and `delivery_days` repeats across the items of an order. If items from one order landed in both training and test data, the test score would be inflated. Every split below keeps all items of an order together.
+- **Train / validation / test, no cross-validation.** Model settings are chosen on a validation set carved out of the training data. The test set is used once, at the end.
+- **Three recipes that add one group of features at a time**, so we can see what each group contributes.
+- **Four model families:** linear regression, ridge, lasso, and a decision tree.
+- **Metrics in days.** We keep `delivery_days` on its raw scale so errors are directly interpretable. MAE (average absolute error) is the primary metric, RMSE (which penalizes large misses more) is secondary, and R² is the traditional version, `1 - SSE/SST` on the test set. An R² of 0 means no better than predicting the average; it can be negative.
+
+**What was kept out of the predictors, and why**
 
 ```{r}
-#| label: setup
+#| label: leakage-table
 library(tidyverse)
 library(tidymodels)
 library(corrplot)
-library(rpart.plot)
 library(knitr)
+tidymodels_prefer()
 
-df_model <- read_rds("data/df_master_clean.rds") |>
-  mutate(
-    purchase_month = factor(purchase_month),
-    customer_state = factor(customer_state),
-    seller_state = factor(seller_state),
-    product_category_name_english = factor(product_category_name_english)
-  ) |>
-  select(
-    delivery_days,
-    freight_value,
-    price,
-    product_weight_g,
-    product_name_length,
-    product_description_length,
-    product_photos_qty,
-    customer_state,
-    seller_state,
-    purchase_month,
-    product_category_name_english
-  )
+leakage_tbl <- tribble(
+  ~Field, ~Treatment, ~Reason,
+  "delivery_days, order_delivered_customer_date", "Target / outcome", "Only known after delivery",
+  "delayed_days, delivered_status", "Excluded", "Derived from the target",
+  "order_status", "Excluded", "Recorded after the order is placed",
+  "order_estimated_delivery_date", "Used only as estimated_days (Recipe 3)", "Olist's estimate, shown at checkout",
+  "shipping_limit_date", "Used only as ship_window_days", "Seller deadline, assumed known at order approval",
+  "order_purchase_timestamp", "Used as year, month, weekday", "Known at purchase",
+  "order_id", "Grouping only", "Keeps items of one order in the same split",
+  "customer_id, customer_unique_id, product_id, seller_id", "Excluded", "Identifiers with thousands of levels",
+  "City names, full zip prefixes", "Excluded (first zip digit used as a coarse region)", "Too many levels to model reliably"
+)
+
+kable(leakage_tbl, caption = "Fields excluded or restricted to avoid leakage")
 ```
 
-## ## Step 1 Checking Skewness of `delivery_days` Before Splitting
- Compares the mean, median, and `log10(delivery_days)` histogram (noting the `18` rows where `delivery_days == 0`, since $\log_{10}(0)$ is undefined) to check whether `delivery_days` is normal or right-skewed before modeling[cite: 5, 7, 22, 66, 67].
+## Step 1: Checking skewness of `delivery_days`
 
+Before splitting, we compare the mean, median, and the `log10(delivery_days)` histogram to see whether the target is right-skewed. The `log10` histogram excludes zero-day rows because $\log_{10}(0)$ is undefined.
 
 ```{r}
-skew_check_tbl <- df_model |>
+#| label: skew-check
+df_clean <- read_rds("data/df_master_clean.rds")
+
+skew_check_tbl <- df_clean |>
   summarise(
     min_days = min(delivery_days),
     n_zero_days = sum(delivery_days == 0),
@@ -60,76 +68,183 @@ kable(
   digits = 2,
   format.args = list(big.mark = ","),
   col.names = c("Min", "Zero-Day Rows", "Mean", "Median", "Max", "SD", "Rows"),
-  caption = "Skewness check on delivery_days before train/test splitting"
+  caption = "Skewness check on delivery_days before splitting"
 )
+```
 
-ggplot(df_model |> filter(delivery_days > 0), aes(x = log10(delivery_days))) +
+```{r}
+#| label: skew-plot
+#| fig-cap: "Distribution of positive delivery_days on a base-10 log scale"
+#| fig-height: 3.5
+ggplot(df_clean |> filter(delivery_days > 0), aes(x = log10(delivery_days))) +
   geom_histogram(bins = 40, fill = "#1b9e77", color = "white", alpha = 0.9) +
   labs(
-    title = "log10(delivery_days) Pulls in the Right Tail (Excluding 18 Zero-Day Rows)",
-    subtitle = "Distribution of positive delivery_days on a base-10 log scale",
+    title = "log10(delivery_days) pulls in the right tail",
+    subtitle = "Zero-day rows excluded from this chart only",
     x = "log10(delivery_days)",
-    y = "Order-Item Count"
+    y = "Order-item count"
   ) +
   theme_minimal()
 ```
- Across the 110,196 cleaned order-item rows, raw delivery_days is right-skewed—the mean (12.01 days) exceeds the median (10 days), the standard deviation is 9.45 days, and the upper tail reaches 209 days. While applying a $\log_{10}$ transformation (excluding the 18 zero-day deliveries where $\log_{10}(0)$ is undefined) pulls in that long right tail into a much more symmetric distribution, we keep delivery_days on its raw day scale so model evaluation metrics (RMSE and MAE) stay directly interpretable in days for a manager, while using step_normalize() inside our recipes to standardize predictor scales.
 
+Across the `r format(skew_check_tbl$n_rows, big.mark = ",")` cleaned order-item rows, `delivery_days` is right-skewed: the mean (`r round(skew_check_tbl$mean_days, 2)` days) exceeds the median (`r skew_check_tbl$median_days` days), the standard deviation is `r round(skew_check_tbl$sd_days, 2)` days, and the tail reaches `r skew_check_tbl$max_days` days. A log transform would make the distribution more symmetric, but we keep the raw scale so that MAE and RMSE stay directly interpretable in days for a logistics manager.
 
-## Step 2: Train / Test Split (`rsample`)
- Splits `df_model` into an 80% training set and a 20% test set with a fixed seed (`123`) so all exploratory checks and model fits happen on the training set while the test set stays held out for evaluation[cite: 25, 57].
+## Step 2: Feature engineering
 
+We build features in four groups: route (where the item travels), timing, product and order characteristics, and Olist's own checkout estimate.
 
 ```{r}
-set.seed(123)
-delivery_split <- initial_split(df_model, prop = 0.80)
-delivery_train <- training(delivery_split)
-delivery_test  <- testing(delivery_split)
-
-split_summary <- tibble(
-  dataset = c("Training Set", "Testing Set"),
-  rows = c(nrow(delivery_train), nrow(delivery_test)),
-  share_pct = round(100 * c(nrow(delivery_train), nrow(delivery_test)) / nrow(df_model), 1)
-)
-
-kable(
-  split_summary,
-  format.args = list(big.mark = ","),
-  col.names = c("Dataset", "Row Count", "Share (%)"),
-  caption = "80/20 train-test split counts"
-)
+#| label: feature-engineering
+df_model <- df_clean |>
+  # Order size: how many items, and how many different sellers, share one order
+  group_by(order_id) |>
+  mutate(n_items = n(), n_sellers = n_distinct(seller_id)) |>
+  ungroup() |>
+  mutate(
+    # Handling time the seller was given before the item had to ship
+    ship_window_days = as.numeric(difftime(shipping_limit_date,
+                                           order_purchase_timestamp, units = "days")),
+    # Package size, density, and shipping cost relative to item value
+    volume_cm3    = product_length_cm * product_height_cm * product_width_cm,
+    density_g_cm3 = product_weight_g / pmax(volume_cm3, 1),
+    freight_ratio = freight_value / price,
+    # Route features. Coordinates are not available, so distance is approximated by a
+    # same-state flag and by the first digit of the zip prefix (a coarse geographic region)
+    same_state    = factor(if_else(seller_state == customer_state, "same", "different")),
+    cust_region   = factor(substr(sprintf("%05d", as.integer(customer_zip_code_prefix)), 1, 1)),
+    seller_region = factor(substr(sprintf("%05d", as.integer(seller_zip_code_prefix)), 1, 1)),
+    same_region   = factor(if_else(cust_region == seller_region, "same", "different")),
+    # Timing and category fields are treated as categories, because seasonality
+    # (for example a slow month) is not a straight-line effect
+    purchase_year  = factor(purchase_year),
+    purchase_month = factor(purchase_month),
+    purchase_dow   = factor(purchase_day_of_week),
+    customer_state = factor(customer_state),
+    seller_state   = factor(seller_state),
+    category       = factor(product_category_name_english)
+  ) |>
+  select(order_id, delivery_days, estimated_days,
+         customer_state, seller_state, same_state, cust_region, seller_region,
+         same_region, purchase_year, purchase_month, purchase_dow,
+         freight_value, price, freight_ratio, product_weight_g, volume_cm3,
+         density_g_cm3, n_items, n_sellers, ship_window_days, category,
+         product_photos_qty, product_name_length, product_description_length)
 ```
 
- Using a reproducible 80/20 split (set.seed(123)), we allocate 88,156 order-item rows (80%) to delivery_train for exploratory checks, preprocessing, and model fitting, while holding out 22,040 rows (20%) in delivery_test so final evaluation metrics reflect unseen data without leakage
-
-
-## Step 3: Numeric Correlations and Categorical Summaries (on Training Data)
-
- Computes correlations among `delivery_days` and numeric predictors on `delivery_train` via `cor()` and `corrplot()`[cite: 23, 24], and summarizes `delivery_days` across `customer_state` using `group_by()` and `summarise()`[cite: 5].
- 
 ```{r}
-num_cor_mat <- delivery_train |>
-  select(delivery_days, freight_value, price, product_weight_g, product_photos_qty) |>
-  cor(use = "complete.obs")
+#| label: feature-table
+feature_tbl <- tribble(
+  ~Feature, ~`Built from`, ~`Why it might matter`,
+  "same_state, same_region", "Seller and customer state / zip region", "Shorter routes should deliver faster",
+  "cust_region, seller_region", "First digit of the 5-digit zip prefix (a coarse region, since postal codes are assigned roughly by geography)", "Stand-in for distance without needing coordinates",
+  "purchase_year, purchase_month, purchase_dow", "Purchase timestamp", "Seasonality, plus partial years (2016 and 2018) in the data",
+  "volume_cm3, density_g_cm3", "Length x height x width; weight / volume", "Bulky or dense items may ship differently",
+  "freight_ratio", "Freight / price", "Shipping cost relative to item value",
+  "n_items, n_sellers", "Rows and distinct sellers within an order", "Multi-seller orders may take longer",
+  "ship_window_days", "Shipping deadline minus purchase time", "How much handling time the seller was given",
+  "estimated_days", "Olist's estimated delivery date minus purchase date", "Olist's own prediction, known at checkout"
+)
 
-round(num_cor_mat, 3)
+kable(feature_tbl, caption = "Engineered features and the reason for including them")
+```
+
+## Step 3: Train / validation / test split, grouped by order
+
+We hold out 20% of orders as the test set. From the remaining training orders, we hold out a further 20% as a validation set, used only to choose model settings. Both splits are grouped by `order_id`, and a check confirms that no order appears on both sides of a split.
+
+```{r}
+#| label: split
+# Split by order, not by row: every item of an order goes to the same set, so the
+# test score is not inflated by near-duplicate rows from the same order
+set.seed(123)
+split <- group_initial_split(df_model, group = order_id, prop = 0.8)
+train <- training(split)
+test  <- testing(split)
+
+# Validation set: a slice of the training orders used only to choose model settings,
+# so the test set stays untouched until the final scoring
+inner     <- group_initial_split(train, group = order_id, prop = 0.8)
+train_sub <- training(inner)
+val       <- testing(inner)
+
+leak_check <- tibble(
+  check = c("Orders in both train and test", "Orders in both train-sub and validation"),
+  overlapping_orders = c(
+    length(intersect(train$order_id, test$order_id)),
+    length(intersect(train_sub$order_id, val$order_id))
+  )
+)
+stopifnot(all(leak_check$overlapping_orders == 0))
+
+split_summary <- tibble(
+  dataset = c("Training (sub-sample used to fit during tuning)",
+              "Validation (used to choose settings)",
+              "Training (full, used for final fits)",
+              "Test (held out until the end)"),
+  rows = c(nrow(train_sub), nrow(val), nrow(train), nrow(test)),
+  orders = c(n_distinct(train_sub$order_id), n_distinct(val$order_id),
+             n_distinct(train$order_id), n_distinct(test$order_id))
+)
+
+kable(split_summary, format.args = list(big.mark = ","),
+      col.names = c("Dataset", "Order-item rows", "Distinct orders"),
+      caption = "Grouped splits (no order appears in more than one of train / validation / test)")
+kable(leak_check, col.names = c("Leakage check", "Overlapping orders"),
+      caption = "Leakage check: both must be zero")
+```
+
+The splits are random at the order level, so they test performance on *similar* orders from the same period. They do not test performance on future orders (see the limitations at the end).
+
+## Step 4: What the training data says about the predictors
+
+All checks here use the training data only.
+
+```{r}
+#| label: correlations
+#| fig-cap: "Correlations among delivery_days and key numeric predictors (training data)"
+#| fig-height: 5
+num_cor_mat <- train |>
+  select(delivery_days, estimated_days, freight_value, price,
+         product_weight_g, volume_cm3, ship_window_days, n_items) |>
+  cor(use = "complete.obs")
 
 corrplot(
   num_cor_mat,
   method = "color",
   type = "upper",
   addCoef.col = "black",
-  number.cex = 0.75,
-  tl.cex = 0.85,
-  title = "Correlations Among delivery_days and Key Numeric Predictors",
+  number.cex = 0.7,
+  tl.cex = 0.8,
+  title = "Correlations among delivery_days and key numeric predictors",
   mar = c(0, 0, 2, 0)
 )
 ```
- Among the numeric predictors in delivery_train, freight_value has the strongest linear correlation with delivery_days ($r = 0.213$), followed weakly by product_weight_g ($r = 0.087$) and price ($r = 0.062$), while product_photos_qty is essentially flat ($r = -0.025$). Notice also that freight_value correlates moderately with product_weight_g ($r = 0.602$) and price ($r = 0.407$), which makes regularized models (Lasso and Ridge) useful when combining correlated item attributes alongside geography and timing.
- 
+
+Among the numeric predictors, `estimated_days` has the strongest linear correlation with `delivery_days` (r = `r round(num_cor_mat["delivery_days", "estimated_days"], 2)`), followed by `freight_value` (r = `r round(num_cor_mat["delivery_days", "freight_value"], 2)`). Weight, volume, and price are only weakly correlated with delivery time on their own. Freight is moderately correlated with weight (r = `r round(num_cor_mat["freight_value", "product_weight_g"], 2)`) and with volume, which is why regularized models (ridge and lasso) are worth trying alongside plain linear regression.
 
 ```{r}
-cat_state_summary <- delivery_train |>
+#| label: route-summary
+route_summary <- train |>
+  group_by(same_state) |>
+  summarise(
+    order_items = n(),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    .groups = "drop"
+  )
+
+kable(
+  route_summary,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Seller and customer in the same state?", "Order-item rows", "Mean days", "Median days"),
+  caption = "Delivery time by route type (training data)"
+)
+```
+
+```{r}
+#| label: state-summary
+cat_state_summary <- train |>
   group_by(customer_state) |>
   summarise(
     n_rows = n(),
@@ -143,208 +258,529 @@ kable(
   head(cat_state_summary, 10),
   digits = 2,
   format.args = list(big.mark = ","),
-  col.names = c("Customer State", "Training Rows", "Mean Days", "Median Days"),
-  caption = "Top 10 customer states by mean delivery_days in training data"
+  col.names = c("Customer state", "Training rows", "Mean days", "Median days"),
+  caption = "Ten slowest customer states by mean delivery_days (training data)"
 )
 ```
 
- In the training set, remote northern and northeastern destination states experience substantially longer transit times than the overall 12.01-day average—led by AP (mean 30.03 days, median 24.5 days across 60 rows), RR (mean 29.59 days, median 25.5 days across 32 rows), and AM (mean 25.73 days, median 25.0 days across 130 rows). Notice also that several of these slower states have very small sample sizes (under 2% of the 88,156 training rows, i.e., fewer than ~1,763 rows), which is why step_other(threshold = 0.02) groups low-frequency states into an "other" bucket before creating dummy variables so models do not overfit sparse state indicators.
+Orders that stay within one state average `r round(route_summary$mean_days[route_summary$same_state == "same"], 1)` days, against `r round(route_summary$mean_days[route_summary$same_state == "different"], 1)` days for cross-state orders. The slowest destinations are remote northern and northeastern states, several of which have very few orders. Because of this, the recipes below do **not** merge small states into an "other" group; doing so would throw away exactly the states where delivery is slowest.
 
----
+## Step 5: Three recipes
 
-
-## Step 4: Defining Four Recipes (`recipes`)
-
-Defines four recipes with progressive predictor sets and uses `step_normalize()` on numeric predictors (plus `step_other()` and `step_dummy()` on categorical predictors) inside the recipe pipeline[cite: 6, 7, 27]. Because `step_dummy()` converts categorical columns into numeric `0/1` indicator columns, Lasso and Ridge (`glmnet`) can use recipes that include dummy-encoded categorical predictors[cite: 7, 9, 27, 49].
+Each recipe adds one group of predictors to the previous one. Comparing them shows what each group is worth.
 
 ```{r}
-# Recipe 1: Simple numeric recipe (freight and weight)
-recipe_1 <- recipe(delivery_days ~ freight_value + product_weight_g, data = delivery_train) |>
-  step_normalize(all_numeric_predictors())
+#| label: recipes
+# Predictor groups. Each recipe adds one group to the one before it, so the
+# improvement from each group of features can be measured on its own
+preds_geo <- c("customer_state", "seller_state", "same_state", "cust_region",
+               "seller_region", "same_region", "purchase_year",
+               "purchase_month", "purchase_dow")
 
-# Recipe 2: Pick-and-choose geography + purchase month
-recipe_2 <- recipe(delivery_days ~ customer_state + seller_state + purchase_month, data = delivery_train) |>
-  step_other(all_nominal_predictors(), threshold = 0.02) |>
-  step_dummy(all_nominal_predictors())
+preds_prod <- c("freight_value", "price", "freight_ratio", "product_weight_g",
+                "volume_cm3", "density_g_cm3", "n_items", "n_sellers",
+                "ship_window_days", "category", "product_photos_qty",
+                "product_name_length", "product_description_length")
 
-# Recipe 3: Combined numeric + geography + month
-recipe_3 <- recipe(
-  delivery_days ~ freight_value + product_weight_g + customer_state + seller_state + purchase_month,
-  data = delivery_train
-) |>
-  step_other(all_nominal_predictors(), threshold = 0.02) |>
-  step_dummy(all_nominal_predictors()) |>
-  step_normalize(all_numeric_predictors())
+recipe_defs <- list(
+  "R1 Geography + timing" = preds_geo,
+  "R2 + Product & order"  = c(preds_geo, preds_prod),
+  "R3 + Olist estimate"   = c(preds_geo, preds_prod, "estimated_days")
+)
 
-# Recipe 4: Broader set adding product category and item price
-recipe_4 <- recipe(
-  delivery_days ~ freight_value + price + product_weight_g + customer_state + seller_state +
-    purchase_month + product_category_name_english,
-  data = delivery_train
-) |>
-  step_other(all_nominal_predictors(), threshold = 0.02) |>
-  step_dummy(all_nominal_predictors()) |>
-  step_normalize(all_numeric_predictors())
+make_recipe <- function(preds) {
+  rec <- recipe(delivery_days ~ .,
+                data = train |> select(delivery_days, order_id, all_of(preds))) |>
+    # order_id only identifies the order; it is not a predictor
+    update_role(order_id, new_role = "id") |>
+    # A category first seen after training gets its own level instead of causing an error
+    step_novel(all_nominal_predictors())
+  # Rare product categories (under 1% of rows) are pooled; states are deliberately not pooled
+  # because the smallest states are the slowest destinations
+  if ("category" %in% preds) rec <- rec |> step_other(category, threshold = 0.01)
+  rec |>
+    # Each category becomes a 0/1 indicator column
+    step_dummy(all_nominal_predictors()) |>
+    # Drop constant columns, and columns that duplicate other columns exactly
+    step_zv(all_predictors()) |>
+    step_impute_median(all_numeric_predictors()) |>
+    step_lincomb(all_numeric_predictors()) |>
+    # Put every numeric predictor on the same scale so penalties treat them evenly
+    step_normalize(all_numeric_predictors())
+}
 
-recipe_1
-```
- Moving from `recipe_1` (2 numeric predictors) through `recipe_2` (geography and month) and `recipe_3` (combined core features) to `recipe_4` (adding category and price) tests whether richer inputs reduce out-of-sample error[cite: 27, 32].
-
----
-
-## Step 5: Naive Baseline and Model Specifications (`parsnip` + `workflows`)
- Computes a naive baseline (predicting the training mean `delivery_days` on `delivery_test`) and fits targeted `parsnip` workflows—Linear Regression (`lm`) on `recipe_1` and `recipe_2`, Lasso (`glmnet`, `mixture = 1`) and Ridge (`glmnet`, `mixture = 0`) on `recipe_3`, and Decision Tree (`rpart`) on `recipe_4`—on `delivery_train` only[cite: 11, 27, 28, 49]
- 
-```{r}
-naive_mean_days <- mean(delivery_train$delivery_days)
-
-naive_preds <- delivery_test |>
-  mutate(.pred = naive_mean_days)
-
-naive_metrics <- naive_preds |>
-  metrics(truth = delivery_days, estimate = .pred) |>
-  mutate(model = "Naive Baseline (Train Mean)")
-
-lm_spec <- linear_reg() |>
-  set_engine("lm") |>
-  set_mode("regression")
-
-lasso_spec <- linear_reg(penalty = 0.1, mixture = 1) |>
-  set_engine("glmnet") |>
-  set_mode("regression")
-
-ridge_spec <- linear_reg(penalty = 0.1, mixture = 0) |>
-  set_engine("glmnet") |>
-  set_mode("regression")
-
-dt_spec <- decision_tree(cost_complexity = 0.001, tree_depth = 6) |>
-  set_engine("rpart") |>
-  set_mode("regression")
-
-wf_lm_r1 <- workflow() |>
-  add_recipe(recipe_1) |>
-  add_model(lm_spec) |>
-  fit(data = delivery_train)
-
-wf_lm_r2 <- workflow() |>
-  add_recipe(recipe_2) |>
-  add_model(lm_spec) |>
-  fit(data = delivery_train)
-
-wf_lasso_r3 <- workflow() |>
-  add_recipe(recipe_3) |>
-  add_model(lasso_spec) |>
-  fit(data = delivery_train)
-
-wf_ridge_r3 <- workflow() |>
-  add_recipe(recipe_3) |>
-  add_model(ridge_spec) |>
-  fit(data = delivery_train)
-
-wf_dt_r4 <- workflow() |>
-  add_recipe(recipe_4) |>
-  add_model(dt_spec) |>
-  fit(data = delivery_train)
-
-tidy(wf_lm_r1)
-```
- In the simple numeric linear model (wf_lm_r1 on recipe_1, where predictors are normalized to mean 0 and SD 1), the intercept is about 12.01 days at average freight_value and product_weight_g. A 1-SD increase in freight_value is associated with roughly +2.41 more delivery days ($p < 2.2 \times 10^{-16}$), whereas a 1-SD increase in product_weight_g has a small negative coefficient of about $-0.62$ days ($p = 1.70 \times 10^{-56}$) once freight_value is held constant—reflecting the correlation between weight and freight cost seen earlier, as well as why simple two-feature linear models have limitations before adding geography, timing, and item details.
- 
----
-
-```{r}
-dir.create("data", showWarnings = FALSE)
-write_rds(delivery_train, "data/delivery_train.rds")
-write_rds(wf_ridge_r3, "data/wf_ridge_r3.rds")
+recipe_tbl <- tibble(
+  Recipe = names(recipe_defs),
+  `Predictors (n)` = map_int(recipe_defs, length),
+  `What it adds` = c(
+    "Route (states, regions, same-state / same-region flags) and purchase timing",
+    "R1 plus freight, price, weight, volume, density, order size, ship window, product category, listing quality",
+    "R2 plus Olist's own checkout estimate (estimated_days)"
+  )
+)
+kable(recipe_tbl, caption = "The three recipes")
 ```
 
+Every recipe applies the same preprocessing: unseen category levels are handled with `step_novel()`, product categories below 1% of rows are grouped (only in recipes that include `category`), categorical variables are dummy-encoded, constant and redundant columns are removed, missing numeric values are imputed with the median, and numeric predictors are standardized. All of it is learned from the training data inside a `workflow`, never from the test set.
 
+## Step 6: Benchmarks, models, and tuning
 
-## Step 6: Test-Set Predictions, Model Comparison (`RMSE`, `MAE`, `R²`), and Diagnostics 
- Evaluates all models on `delivery_test` using `rmse`, `mae`, and `rsq` (all in raw days for `RMSE` and `MAE`), and plots predicted vs. actual values, residuals, and the decision tree[cite: 29, 31, 50, 54, 60]
- 
+**Benchmarks** give the models something to beat:
+
+- **Naive:** always predict the average training delivery time.
+- **Olist estimate only:** a one-variable linear model on `estimated_days`.
+- **First-draft ridge:** the ridge model from the project's first modeling iteration (freight, weight, state, and purchase month), refit on the same grouped split so the comparison is fair.
+
+**Models:** linear regression (no settings), ridge and lasso (one setting each, the penalty), and a decision tree (depth and minimum node size). The penalty and tree settings are chosen as follows: fit each candidate on the training sub-sample, measure MAE on the validation set, and keep the candidate with the lowest validation MAE. The chosen settings are then refit on the full training data and scored once on the test set.
+
 ```{r}
-preds_lm_r1 <- predict(wf_lm_r1, new_data = delivery_test) |>
-  bind_cols(delivery_test)
+#| label: helpers
+# Metrics: RMSE and MAE in days, and traditional R-squared (1 - SSE/SST)
+mset <- metric_set(rmse, mae, rsq_trad)
 
-preds_lm_r2 <- predict(wf_lm_r2, new_data = delivery_test) |>
-  bind_cols(delivery_test)
+fit_wf <- function(rec, spec, data) {
+  workflow() |> add_recipe(rec) |> add_model(spec) |> fit(data)
+}
+# Average absolute error in days on a dataset; used to compare candidate settings
+mae_on <- function(fit, data) {
+  predict(fit, new_data = data) |>
+    bind_cols(data |> select(delivery_days)) |>
+    mae(truth = delivery_days, estimate = .pred) |>
+    pull(.estimate)
+}
+score_fit <- function(fit) {
+  predict(fit, new_data = test) |>
+    bind_cols(test |> select(delivery_days)) |>
+    mset(truth = delivery_days, estimate = .pred)
+}
 
-preds_lasso_r3 <- predict(wf_lasso_r3, new_data = delivery_test) |>
-  bind_cols(delivery_test)
+glmnet_spec <- function(p, mixture) {
+  linear_reg(penalty = p, mixture = mixture) |> set_engine("glmnet")
+}
+# cost_complexity is fixed at a small value, so depth and minimum node size control tree complexity
+tree_spec <- function(d, m) {
+  decision_tree(tree_depth = d, min_n = m, cost_complexity = 0.0001) |>
+    set_engine("rpart") |> set_mode("regression")
+}
 
-preds_ridge_r3 <- predict(wf_ridge_r3, new_data = delivery_test) |>
-  bind_cols(delivery_test)
+# Candidate settings: penalties from very weak (1e-5) to strong (1), and six tree shapes
+pen_grid  <- 10^seq(-5, 0, length.out = 10)
+tree_grid <- expand_grid(tree_depth = c(5, 8, 12), min_n = c(20, 60))
 
-preds_dt_r4 <- predict(wf_dt_r4, new_data = delivery_test) |>
-  bind_cols(delivery_test)
+# Fit each candidate on the training sub-sample and keep the one with the lowest validation MAE
+tune_pen <- function(rec, mixture) {
+  maes <- map_dbl(pen_grid, \(p) fit_wf(rec, glmnet_spec(p, mixture), train_sub) |> mae_on(val))
+  pen_grid[which.min(maes)]
+}
+tune_tree <- function(rec) {
+  maes <- pmap_dbl(tree_grid, \(tree_depth, min_n)
+                   fit_wf(rec, tree_spec(tree_depth, min_n), train_sub) |> mae_on(val))
+  tree_grid[which.min(maes), ]
+}
 
-m_lm_r1    <- preds_lm_r1    |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "LM (Recipe 1)")
-m_lm_r2    <- preds_lm_r2    |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "LM (Recipe 2)")
-m_lasso_r3 <- preds_lasso_r3 |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "Lasso (Recipe 3)")
-m_ridge_r3 <- preds_ridge_r3 |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "Ridge (Recipe 3)")
-m_dt_r4    <- preds_dt_r4    |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "Decision Tree (Recipe 4)")
+grid_tbl <- tribble(
+  ~Model, ~`Setting(s) chosen on the validation set`, ~`Candidates tried`,
+  "Linear regression", "None", "1",
+  "Ridge (L2 penalty)", "penalty", "10 values from 1e-5 to 1",
+  "Lasso (L1 penalty)", "penalty", "10 values from 1e-5 to 1",
+  "Decision tree", "tree_depth, min_n", "3 depths x 2 minimum node sizes = 6"
+)
+kable(grid_tbl, caption = "What is tuned for each model")
+```
 
-all_metrics <- bind_rows(naive_metrics, m_lm_r1, m_lm_r2, m_lasso_r3, m_ridge_r3, m_dt_r4) |>
-  select(model, .metric, .estimate) |>
+The same procedure is applied to each of the three recipes, giving twelve final models (four model families on three recipes) plus the three benchmarks.
+
+```{r}
+#| label: fit-models
+cache_file <- "data/modeling_cache.rds"
+
+if (file.exists(cache_file)) {
+  cache <- read_rds(cache_file)
+} else {
+  # Benchmarks: simple reference points that every model has to beat
+  bench_naive <- test |>
+    mutate(.pred = mean(train$delivery_days)) |>
+    mset(truth = delivery_days, estimate = .pred) |>
+    mutate(recipe = "Benchmark", model = "Naive (train mean)", settings = "")
+
+  fit_olist <- fit_wf(recipe(delivery_days ~ estimated_days, data = train),
+                      linear_reg() |> set_engine("lm"), train)
+  bench_olist <- score_fit(fit_olist) |>
+    mutate(recipe = "Benchmark", model = "Olist estimate only (LM)", settings = "")
+
+  # First-draft model: the original small feature set, refit on the same grouped split
+  rec_orig <- recipe(delivery_days ~ freight_value + product_weight_g +
+                       customer_state + seller_state + purchase_month,
+                     data = train) |>
+    step_other(all_nominal_predictors(), threshold = 0.02) |>
+    step_dummy(all_nominal_predictors()) |>
+    step_normalize(all_numeric_predictors())
+  fit_orig <- fit_wf(rec_orig, glmnet_spec(0.1, 0), train)
+  bench_orig <- score_fit(fit_orig) |>
+    mutate(recipe = "Benchmark", model = "First-draft ridge (original features)",
+           settings = "penalty=0.1")
+
+  # Fit all four model families on each recipe. Settings are chosen on the validation set,
+  # then the final models are refit on the full training data
+  run_recipe <- function(preds, rec_name) {
+    rec   <- make_recipe(preds)
+    pen_r <- tune_pen(rec, 0)
+    pen_l <- tune_pen(rec, 1)
+    bt    <- tune_tree(rec)
+
+    fits <- list(
+      "Linear Regression" = fit_wf(rec, linear_reg() |> set_engine("lm"), train),
+      "Ridge"             = fit_wf(rec, glmnet_spec(pen_r, 0), train),
+      "Lasso"             = fit_wf(rec, glmnet_spec(pen_l, 1), train),
+      "Decision Tree"     = fit_wf(rec, tree_spec(bt$tree_depth, bt$min_n), train)
+    )
+    settings <- c(
+      "Linear Regression" = "none",
+      "Ridge"             = paste0("penalty=", signif(pen_r, 2)),
+      "Lasso"             = paste0("penalty=", signif(pen_l, 2)),
+      "Decision Tree"     = paste0("depth=", bt$tree_depth, ", min_n=", bt$min_n)
+    )
+
+    list(
+      metrics = imap(fits, \(fit, model_name)
+                     score_fit(fit) |>
+                       mutate(recipe = rec_name, model = model_name,
+                              settings = settings[[model_name]])) |>
+        list_rbind(),
+      fits = fits[c("Lasso", "Decision Tree")]
+    )
+  }
+
+  runs <- imap(recipe_defs, run_recipe)
+
+  cache <- list(
+    results_all = bind_rows(bench_naive, bench_olist, bench_orig,
+                            map(runs, "metrics") |> list_rbind()),
+    fit_lasso3  = runs[["R3 + Olist estimate"]]$fits[["Lasso"]],
+    fit_tree3   = runs[["R3 + Olist estimate"]]$fits[["Decision Tree"]]
+  )
+  write_rds(cache, cache_file)
+}
+
+results_all <- cache$results_all
+fit_lasso3  <- cache$fit_lasso3
+fit_tree3   <- cache$fit_tree3
+```
+
+## Step 7: Test-set comparison
+
+All numbers below are measured on the held-out test set, in days.
+
+```{r}
+#| label: results-table
+results_wide <- results_all |>
+  select(recipe, model, settings, .metric, .estimate) |>
   pivot_wider(names_from = .metric, values_from = .estimate) |>
-  arrange(rmse)
+  arrange(mae)
 
 kable(
-  all_metrics,
+  results_wide,
   digits = 3,
-  col.names = c("Model", "RMSE (Days)", "R²", "MAE (Days)"),
-  caption = "Test-set performance across baseline and candidate models (lower RMSE/MAE is better; higher R² is better)"
+  col.names = c("Recipe", "Model", "Settings chosen on validation set",
+                "RMSE (days)", "MAE (days)", "R² (traditional)"),
+  caption = "Test-set performance, sorted by MAE (lower MAE and RMSE are better; higher R² is better)"
 )
 ```
 
- -Best overall baseline performance: Ridge (Recipe 3) leads the test set on both RMSE (7.862 days) and $R^2$ (0.251), while tying closely with Decision Tree (Recipe 4) on MAE (5.224 days vs. 5.222 days). Compared to the naive training-mean baseline (RMSE 9.085 days, MAE 6.286 days), Ridge (Recipe 3) cuts RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%).  
- 
- -Geography and purchase month carry the biggest lift: LM (Recipe 2)—using only customer_state, seller_state, and purchase_month—reaches 7.889 days RMSE, 5.260 days MAE, and 0.246 $R^2$, far outperforming LM (Recipe 1) (RMSE 8.872 days, MAE 6.060 days, $R^2$ 0.046), which uses only normalized freight_value and product_weight_g.  
- 
- -Close race among richer baseline models: Ridge (Recipe 3), LM (Recipe 2), Lasso (Recipe 3; RMSE 7.891 days, MAE 5.243 days, $R^2$ 0.246), and Decision Tree (Recipe 4; RMSE 7.937 days, MAE 5.222 days, $R^2$ 0.237) all cluster tightly around ~7.86–7.94 days RMSE and ~5.22–5.26 days MAE.  
- 
- -Practical takeaway for management: Adding origin/destination geography and timing explains roughly a quarter of test-set variance ($R^2 \approx 0.25$) and trims typical absolute error by ~1.06 days per item compared to a constant average, though ~5.2 days of average error and ~7.9 days of RMSE still leave room for unmeasured transit/carrier factors and extreme tail delays.
- 
- 
 ```{r}
-best_model_name <- all_metrics$model[1]
-best_preds <- switch(
-  best_model_name,
-  "Naive Baseline (Train Mean)" = naive_preds,
-  "LM (Recipe 1)" = preds_lm_r1,
-  "LM (Recipe 2)" = preds_lm_r2,
-  "Lasso (Recipe 3)" = preds_lasso_r3,
-  "Ridge (Recipe 3)" = preds_ridge_r3,
-  "Decision Tree (Recipe 4)" = preds_dt_r4
-) |>
+#| label: mae-matrix
+mae_matrix <- results_all |>
+  filter(.metric == "mae", recipe != "Benchmark") |>
+  select(model, recipe, .estimate) |>
+  pivot_wider(names_from = recipe, values_from = .estimate)
+
+kable(mae_matrix, digits = 3, caption = "Test MAE (days): models down, recipes across")
+```
+
+```{r}
+#| label: mae-plot
+#| fig-cap: "Test MAE by recipe and model; the dashed line is the Olist-estimate-only benchmark"
+#| fig-height: 4.5
+olist_mae <- results_all |>
+  filter(.metric == "mae", model == "Olist estimate only (LM)") |>
+  pull(.estimate)
+
+results_all |>
+  filter(.metric == "mae", recipe != "Benchmark") |>
+  mutate(recipe = factor(recipe, levels = names(recipe_defs))) |>
+  ggplot(aes(x = recipe, y = .estimate, color = model, group = model)) +
+  geom_line(linewidth = 0.8, position = position_dodge(width = 0.25)) +
+  geom_point(size = 3, position = position_dodge(width = 0.25)) +
+  geom_hline(yintercept = olist_mae, linetype = "dashed", color = "grey40") +
+  annotate("text", x = 0.6, y = olist_mae, label = "Olist estimate only",
+           vjust = -0.7, hjust = 0, size = 3.3, color = "grey30") +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    title = "Richer features help; the choice of model matters much less",
+    x = NULL, y = "Test MAE (days)", color = "Model"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: takeaway-values
+#| include: false
+get_metric <- function(rec, mod, met) {
+  results_all |> filter(recipe == rec, model == mod, .metric == met) |> pull(.estimate)
+}
+r1 <- names(recipe_defs)[1]; r2 <- names(recipe_defs)[2]; r3 <- names(recipe_defs)[3]
+
+best_row <- results_wide |>
+  filter(recipe != "Benchmark") |>
+  slice_min(mae, n = 1, with_ties = FALSE)
+
+naive_mae  <- get_metric("Benchmark", "Naive (train mean)", "mae")
+naive_rmse <- get_metric("Benchmark", "Naive (train mean)", "rmse")
+olist_r2   <- get_metric("Benchmark", "Olist estimate only (LM)", "rsq_trad")
+draft_mae  <- get_metric("Benchmark", "First-draft ridge (original features)", "mae")
+draft_r2   <- get_metric("Benchmark", "First-draft ridge (original features)", "rsq_trad")
+
+lm_r1_mae <- get_metric(r1, "Linear Regression", "mae")
+lm_r2_mae <- get_metric(r2, "Linear Regression", "mae")
+lm_r3_mae <- get_metric(r3, "Linear Regression", "mae")
+
+r3_rmse_range <- results_all |>
+  filter(recipe == r3, .metric == "rmse", model %in% c("Linear Regression", "Ridge", "Lasso")) |>
+  pull(.estimate) |> range()
+
+tree_r3_mae <- get_metric(r3, "Decision Tree", "mae")
+tree_r3_rmse <- get_metric(r3, "Decision Tree", "rmse")
+lin_r3_rmse <- get_metric(r3, "Linear Regression", "rmse")
+```
+
+### Key takeaways from the model comparison
+
+1. **Best configuration:** `r best_row$model` on `r best_row$recipe`, with a test MAE of `r round(best_row$mae, 2)` days, RMSE of `r round(best_row$rmse, 2)` days, and R² of `r round(best_row$rsq_trad, 2)`. In plain terms, using only information available at checkout, the model explains about `r round(100 * best_row$rsq_trad)`% of the variation in delivery time, with a typical miss of about `r round(best_row$mae, 1)` days.
+2. **Improvement over the benchmarks:** MAE is `r round(100 * (1 - best_row$mae / naive_mae))`% lower than always predicting the average (`r round(naive_mae, 2)` days), and `r round(100 * (1 - best_row$mae / draft_mae))`% lower than the first-draft ridge (`r round(draft_mae, 2)` days; R² `r round(draft_r2, 2)`) on the same grouped split.
+3. **Features matter more than model choice.** For linear regression, adding product and order features (R1 to R2) lowers MAE from `r round(lm_r1_mae, 2)` to `r round(lm_r2_mae, 2)` days. Adding Olist's own estimate (R2 to R3) lowers it only to `r round(lm_r3_mae, 2)` days. That estimate is weak on its own (R² of `r round(olist_r2, 2)`), and most of what it knows about the route is already captured by the state and region features.
+4. **Regularization made almost no difference.** In Recipe 3, linear regression, ridge, and lasso have RMSEs between `r round(r3_rmse_range[1], 2)` and `r round(r3_rmse_range[2], 2)` days. With about `r format(nrow(train), big.mark = ",")` training rows and a modest number of predictors, there is little overfitting for a penalty to fix. Differences this small are within the noise of a single test split.
+5. **The tree is close to the linear models, not far ahead.** In Recipe 3 the decision tree's MAE is `r round(tree_r3_mae, 2)` days against `r round(lm_r3_mae, 2)` for linear regression, a gap of `r round(abs(tree_r3_mae - lm_r3_mae), 2)` days. Its RMSE (`r round(tree_r3_rmse, 2)`) is `r if (tree_r3_rmse > lin_r3_rmse) "slightly worse" else "slightly better"` than linear regression's (`r round(lin_r3_rmse, 2)`), which suggests the tree does not handle the longest delays any better.
+6. **RMSE is much larger than MAE** (`r round(best_row$rmse, 1)` vs `r round(best_row$mae, 1)` days): most orders are predicted well, but a minority of very late orders produce large errors. The diagnostics below look at this directly.
+
+## Step 8: Diagnostics for the decision tree (Recipe 3)
+
+We use the decision tree for diagnostics because it has the lowest MAE in the comparison. We use the lasso in the next step because its coefficients are easier to interpret.
+
+```{r}
+#| label: diagnostics-data
+test_preds <- predict(fit_tree3, new_data = test) |>
+  bind_cols(test) |>
+  # Residual = actual minus predicted days; positive means the order took longer than predicted
   mutate(residual = delivery_days - .pred)
 
-ggplot(best_preds, aes(x = delivery_days, y = .pred)) +
-  geom_point(alpha = 0.25, color = "#2b8cbe") +
+# Share of test orders whose prediction is within +/- N days of the actual delivery time
+band_tbl <- tibble(window_days = c(2, 3, 5, 7, 10)) |>
+  mutate(share = map_dbl(window_days, \(w) mean(abs(test_preds$residual) <= w)))
+
+kable(
+  band_tbl |> mutate(share = scales::percent(share, accuracy = 0.1)),
+  col.names = c("Prediction within +/- this many days", "Share of test orders"),
+  caption = "How often the prediction lands close to the actual delivery time"
+)
+```
+
+```{r}
+#| label: pred-vs-actual
+#| fig-cap: "Predicted vs. actual delivery days (test set, decision tree, Recipe 3)"
+#| fig-height: 4.5
+ggplot(test_preds, aes(x = delivery_days, y = .pred)) +
+  geom_point(alpha = 0.2, color = "#2b8cbe") +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "#d95f02", linewidth = 0.9) +
   labs(
-    title = paste("Predicted vs. Actual Delivery Days:", best_model_name),
-    subtitle = "Points below the dashed 45-degree line indicate under-prediction on slower orders",
-    x = "Actual delivery_days (Test Set)",
+    title = "Predicted vs. actual delivery days",
+    subtitle = "Points below the dashed line are under-predictions of slow orders",
+    x = "Actual delivery_days (test set)",
     y = "Predicted delivery_days"
   ) +
   theme_minimal()
+```
 
-ggplot(best_preds, aes(x = .pred, y = residual)) +
-  geom_point(alpha = 0.25, color = "#2b8cbe") +
+```{r}
+#| label: residuals
+#| fig-cap: "Residuals vs. predicted delivery days (test set, decision tree, Recipe 3)"
+#| fig-height: 4.5
+ggplot(test_preds, aes(x = .pred, y = residual)) +
+  geom_point(alpha = 0.2, color = "#2b8cbe") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "#d95f02", linewidth = 0.9) +
   labs(
-    title = paste("Residuals vs. Predicted Delivery Days:", best_model_name),
-    subtitle = "Positive residuals (above zero) show actual delivery days exceeding predictions",
+    title = "Residuals vs. predicted delivery days",
+    subtitle = "Positive residuals: the order took longer than predicted",
     x = "Predicted delivery_days",
-    y = "Residual (Actual - Predicted Days)"
+    y = "Residual (actual - predicted days)"
   ) +
   theme_minimal()
-``` 
- -Strong under-prediction on long-tail deliveries: In the predicted-vs.-actual plot for Ridge (Recipe 3), most predictions cluster between roughly 5 and 25 days, while a wide tail of actual deliveries stretches past 50 to over 150 days well below the 45-degree dashed line. Because the model predicts conditional averages on a right-skewed target, it systematically under-predicts severe delivery delays.
- 
- -Positive skew in residuals: In the residuals-vs.-predicted plot, points lie mostly within roughly $\pm 15$ days around zero for typical predictions (~5–25 days), but large positive residuals (Actual - Predicted > 0, extending up to ~150 days) appear whenever extreme delays occur.
- 
- -Operational takeaway for management: Ridge (Recipe 3) tracks typical order timelines reasonably well, but a single point estimate will miss extreme outlier delays—so for customer ETA messaging or exception flagging, teams should pair point estimates with buffer windows or separate delay-risk monitoring rather than relying on average predictions alone
+```
 
+```{r}
+#| label: error-by-state
+#| fig-cap: "Test MAE by customer state (states with at least 200 test rows)"
+#| fig-height: 5
+state_err <- test_preds |>
+  group_by(customer_state) |>
+  summarise(n = n(), mae = mean(abs(residual)), bias = mean(residual), .groups = "drop") |>
+  filter(n >= 200) |>
+  arrange(desc(mae))
+
+ggplot(state_err, aes(x = mae, y = reorder(customer_state, mae))) +
+  geom_col(fill = "#2b8cbe") +
+  labs(
+    title = "Prediction error is largest for remote destination states",
+    x = "Test MAE (days)", y = "Customer state"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#| label: diagnostics-values
+#| include: false
+under_10 <- mean(test_preds$residual > 10)
+over_10  <- mean(test_preds$residual < -10)
+within_5 <- band_tbl$share[band_tbl$window_days == 5]
+within_10 <- band_tbl$share[band_tbl$window_days == 10]
+worst_state <- state_err$customer_state[1]
+best_state  <- state_err$customer_state[nrow(state_err)]
+```
+
+### Key takeaways from the diagnostics
+
+- **Most predictions are close.** About `r scales::percent(within_5, accuracy = 1)` of test orders land within 5 days of the prediction, and `r scales::percent(within_10, accuracy = 1)` within 10 days.
+- **The misses are lopsided.** The model under-predicts by more than 10 days on `r scales::percent(under_10, accuracy = 0.1)` of orders, but over-predicts by more than 10 days on only `r scales::percent(over_10, accuracy = 0.1)`. Because the model predicts a typical value for a right-skewed target, the very slow orders are the ones it misses.
+- **Error depends on where the order goes.** Among states with enough test orders, MAE is highest for `r worst_state` and lowest for `r best_state`.
+- **Practical implication:** a single predicted number is a good guide for typical orders, but it should be paired with a buffer for long routes and for the slow months, instead of being promised to the customer as exact.
+
+## Step 9: What drives the predictions?
+
+### Lasso coefficients
+
+The lasso shrinks the coefficients of unhelpful predictors to exactly zero, so the features that survive are the ones the model finds useful. Predictors are standardized, so each coefficient is the change in predicted delivery days for a one-standard-deviation increase in that predictor (for a dummy variable, a one-standard-deviation change in the 0/1 indicator). Coefficients show direction and relative size, not causal effects.
+
+```{r}
+#| label: lasso-coefs
+#| fig-cap: "Largest lasso coefficients (Recipe 3, standardized predictors)"
+#| fig-height: 5.5
+# Coefficients are per one standard deviation of each predictor; zero means the lasso dropped it
+lasso_coefs <- tidy(fit_lasso3) |> filter(term != "(Intercept)")
+n_kept  <- sum(lasso_coefs$estimate != 0)
+n_total <- nrow(lasso_coefs)
+
+top_coefs <- lasso_coefs |>
+  filter(estimate != 0) |>
+  slice_max(abs(estimate), n = 15) |>
+  mutate(direction = if_else(estimate > 0, "Slower delivery", "Faster delivery"))
+
+ggplot(top_coefs, aes(x = estimate, y = reorder(term, estimate), fill = direction)) +
+  geom_col() +
+  scale_fill_manual(values = c("Slower delivery" = "#d95f02", "Faster delivery" = "#1b9e77")) +
+  labs(
+    title = "Lasso: largest coefficients",
+    x = "Change in predicted delivery days per 1 SD of the predictor",
+    y = NULL, fill = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+The lasso kept `r n_kept` of `r n_total` encoded predictors.
+
+### Decision tree importance, grouped by original feature
+
+A tree's raw importance scores are split across dummy columns, so a feature like `customer_state` appears as 27 small bars. We add the scores back together by original feature to get a clearer picture.
+
+```{r}
+#| label: tree-importance
+#| fig-cap: "Decision tree importance, summed across dummy columns (Recipe 3)"
+#| fig-height: 5
+imp <- extract_fit_engine(fit_tree3)$variable.importance
+
+imp_tbl <- tibble(term = names(imp), importance = imp) |>
+  # A feature such as customer_state is split into many dummy columns; add them back together
+  mutate(feature = case_when(
+    str_detect(term, "^customer_state") ~ "customer_state",
+    str_detect(term, "^seller_state")   ~ "seller_state",
+    str_detect(term, "^same_state")     ~ "same_state",
+    str_detect(term, "^same_region")    ~ "same_region",
+    str_detect(term, "^cust_region")    ~ "customer_zip_region",
+    str_detect(term, "^seller_region")  ~ "seller_zip_region",
+    str_detect(term, "^purchase_year")  ~ "purchase_year",
+    str_detect(term, "^purchase_month") ~ "purchase_month",
+    str_detect(term, "^purchase_dow")   ~ "purchase_weekday",
+    str_detect(term, "^category")       ~ "product_category",
+    TRUE ~ term
+  )) |>
+  group_by(feature) |>
+  summarise(importance = sum(importance), .groups = "drop") |>
+  mutate(share = importance / sum(importance)) |>
+  arrange(desc(importance))
+
+imp_tbl |>
+  slice_head(n = 12) |>
+  ggplot(aes(x = share, y = reorder(feature, share))) +
+  geom_col(fill = "#2b8cbe") +
+  scale_x_continuous(labels = scales::percent) +
+  labs(
+    title = "Decision tree: share of importance by feature (Recipe 3)",
+    x = "Share of total importance", y = NULL
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#| label: importance-values
+#| include: false
+top3 <- imp_tbl |> slice_head(n = 3)
+timing_share <- imp_tbl |>
+  filter(feature %in% c("purchase_month", "purchase_year", "purchase_weekday")) |>
+  summarise(s = sum(share)) |> pull(s)
+```
+
+### Key takeaways on drivers
+
+- **Route features dominate.** The three most important feature groups in the tree are `r top3$feature[1]` (`r scales::percent(top3$share[1], accuracy = 1)`), `r top3$feature[2]` (`r scales::percent(top3$share[2], accuracy = 1)`), and `r top3$feature[3]` (`r scales::percent(top3$share[3], accuracy = 1)`). Where an item travels from and to is the strongest driver of delivery time.
+- **Purchase timing contributes a smaller share** (`r scales::percent(timing_share, accuracy = 1)` for year, month, and weekday combined), consistent with the exploration page's finding that purchase timing barely changes delivery outcomes. The months that do show up match the slow months seen in the exploration.
+- **`estimated_days` ranks high in importance but added little to accuracy.** The tree uses it often, but because route features carry much of the same information, removing it costs little. Importance measures how much a feature is *used*; the recipe comparison measures how much accuracy it *adds*.
+- **Caution:** correlated features share credit in tree importance, and neither the lasso nor the tree shows causation. These results describe what the models rely on to predict, not what causes a delay.
+
+```{r}
+#| label: save-objects
+#| include: false
+dir.create("data", showWarnings = FALSE)
+write_rds(train, "data/delivery_train_v2.rds")
+write_rds(fit_lasso3, "data/final_lasso_r3.rds")
+write_rds(fit_tree3, "data/final_tree_r3.rds")
+write_rds(results_wide, "data/model_results.rds")
+write_rds(
+  test_preds |>
+    select(order_id, customer_state, seller_state, same_state, purchase_month,
+           estimated_days, delivery_days, .pred, residual),
+  "data/test_preds_tree_r3.rds"
+)
+```
+
+# Key Takeaways and Limitations
+
+**What we found**
+
+- Delivery time on Olist is driven mainly by **route** (seller and customer location), with product and order characteristics adding a smaller amount and purchase timing adding little.
+- The best model (`r best_row$model`, `r best_row$recipe`) predicts delivery time to within about `r round(best_row$mae, 1)` days on average and explains about `r round(100 * best_row$rsq_trad)`% of the variation, improving MAE by `r round(100 * (1 - best_row$mae / draft_mae))`% over the first draft and `r round(100 * (1 - best_row$mae / naive_mae))`% over the naive average.
+- Model choice mattered far less than feature choice: ridge, lasso, and linear regression perform almost identically, and the decision tree is only slightly different.
+- Olist's own estimate carries limited extra information once route features are present, which supports the earlier finding that the estimates are conservative rather than precise.
+
+**How far to trust it**
+
+- **Single random split.** All results come from one test set. Differences of a few hundredths of a day between models are not meaningful, and a different random split would shift the numbers slightly.
+- **Similar orders, not future orders.** The split is random across 2016-2018, so it tests performance on orders like those already seen. It does not test how the model would perform after a carrier change, a strike, or a seasonal shift.
+- **Tail delays are still hard.** The model tends to under-predict the slowest orders, so a point estimate should be paired with a delivery window.
+- **Order-item grain.** `delivery_days` is an order-level duration repeated across the items of an order, so multi-item orders carry slightly more weight in the metrics.
+- **Settings chosen on one validation slice.** Tuning used a single validation set. If a chosen setting sits at the edge of its search grid (see the Settings column), a wider search might change results slightly.
+- **Interpretation of coefficients.** Standardized lasso coefficients show direction and relative size, not causal effects.
+- **Unmeasured factors.** Carrier performance, weather, seller behavior, and true seller-to-customer distance are not in the data. Zip-code region is only a coarse stand-in for distance.
+
+**What could improve it**
+
+Adding real seller-to-customer distance (from Olist's geolocation table) is the most promising next step. Non-linear ensemble models or a log-transformed target are further options that were outside the scope of this analysis.

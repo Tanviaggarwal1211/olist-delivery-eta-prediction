@@ -1,0 +1,350 @@
+---
+title: "Modeling"
+subtitle: "Baseline regression, regularization, and decision tree models for Olist delivery_days"
+---
+
+# Overview and Target / Leakage Guardrails
+
+This page builds straightforward baseline models to predict `delivery_days` (days from order purchase to customer delivery) using the cleaned dataset (`data/df_master_clean.rds`) from `data.qmd`[cite: 2, 3]. Following the `tidymodels` workflow from Weeks 8–12, we check target skewness first, split into training and testing sets, inspect numeric correlations and categorical groups on the training set, define four recipes, fit linear regression, Lasso, Ridge, and decision tree models, compare them against a naive baseline on the test set, and inspect diagnostic plots[cite: 3].
+
+Post-delivery or target-derived fields (such as `delayed_days` or `delivered_status`) are excluded from predictors, and all preprocessing steps (`step_other()`, `step_dummy()`, `step_normalize()`) are learned inside `workflows` fitted only on the training set[cite: 2].
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(tidymodels)
+library(corrplot)
+library(rpart.plot)
+library(knitr)
+
+df_model <- read_rds("data/df_master_clean.rds") |>
+  mutate(
+    purchase_month = factor(purchase_month),
+    customer_state = factor(customer_state),
+    seller_state = factor(seller_state),
+    product_category_name_english = factor(product_category_name_english)
+  ) |>
+  select(
+    delivery_days,
+    freight_value,
+    price,
+    product_weight_g,
+    product_name_length,
+    product_description_length,
+    product_photos_qty,
+    customer_state,
+    seller_state,
+    purchase_month,
+    product_category_name_english
+  )
+```
+
+## ## Step 1 Checking Skewness of `delivery_days` Before Splitting
+ Compares the mean, median, and `log10(delivery_days)` histogram (noting the `18` rows where `delivery_days == 0`, since $\log_{10}(0)$ is undefined) to check whether `delivery_days` is normal or right-skewed before modeling[cite: 5, 7, 22, 66, 67].
+
+
+```{r}
+skew_check_tbl <- df_model |>
+  summarise(
+    min_days = min(delivery_days),
+    n_zero_days = sum(delivery_days == 0),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    max_days = max(delivery_days),
+    sd_days = sd(delivery_days),
+    n_rows = n()
+  )
+
+kable(
+  skew_check_tbl,
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Min", "Zero-Day Rows", "Mean", "Median", "Max", "SD", "Rows"),
+  caption = "Skewness check on delivery_days before train/test splitting"
+)
+
+ggplot(df_model |> filter(delivery_days > 0), aes(x = log10(delivery_days))) +
+  geom_histogram(bins = 40, fill = "#1b9e77", color = "white", alpha = 0.9) +
+  labs(
+    title = "log10(delivery_days) Pulls in the Right Tail (Excluding 18 Zero-Day Rows)",
+    subtitle = "Distribution of positive delivery_days on a base-10 log scale",
+    x = "log10(delivery_days)",
+    y = "Order-Item Count"
+  ) +
+  theme_minimal()
+```
+ Across the 110,196 cleaned order-item rows, raw delivery_days is right-skewed—the mean (12.01 days) exceeds the median (10 days), the standard deviation is 9.45 days, and the upper tail reaches 209 days. While applying a $\log_{10}$ transformation (excluding the 18 zero-day deliveries where $\log_{10}(0)$ is undefined) pulls in that long right tail into a much more symmetric distribution, we keep delivery_days on its raw day scale so model evaluation metrics (RMSE and MAE) stay directly interpretable in days for a manager, while using step_normalize() inside our recipes to standardize predictor scales.
+
+
+## Step 2: Train / Test Split (`rsample`)
+ Splits `df_model` into an 80% training set and a 20% test set with a fixed seed (`123`) so all exploratory checks and model fits happen on the training set while the test set stays held out for evaluation[cite: 25, 57].
+
+
+```{r}
+set.seed(123)
+delivery_split <- initial_split(df_model, prop = 0.80)
+delivery_train <- training(delivery_split)
+delivery_test  <- testing(delivery_split)
+
+split_summary <- tibble(
+  dataset = c("Training Set", "Testing Set"),
+  rows = c(nrow(delivery_train), nrow(delivery_test)),
+  share_pct = round(100 * c(nrow(delivery_train), nrow(delivery_test)) / nrow(df_model), 1)
+)
+
+kable(
+  split_summary,
+  format.args = list(big.mark = ","),
+  col.names = c("Dataset", "Row Count", "Share (%)"),
+  caption = "80/20 train-test split counts"
+)
+```
+
+ Using a reproducible 80/20 split (set.seed(123)), we allocate 88,156 order-item rows (80%) to delivery_train for exploratory checks, preprocessing, and model fitting, while holding out 22,040 rows (20%) in delivery_test so final evaluation metrics reflect unseen data without leakage
+
+
+## Step 3: Numeric Correlations and Categorical Summaries (on Training Data)
+
+ Computes correlations among `delivery_days` and numeric predictors on `delivery_train` via `cor()` and `corrplot()`[cite: 23, 24], and summarizes `delivery_days` across `customer_state` using `group_by()` and `summarise()`[cite: 5].
+ 
+```{r}
+num_cor_mat <- delivery_train |>
+  select(delivery_days, freight_value, price, product_weight_g, product_photos_qty) |>
+  cor(use = "complete.obs")
+
+round(num_cor_mat, 3)
+
+corrplot(
+  num_cor_mat,
+  method = "color",
+  type = "upper",
+  addCoef.col = "black",
+  number.cex = 0.75,
+  tl.cex = 0.85,
+  title = "Correlations Among delivery_days and Key Numeric Predictors",
+  mar = c(0, 0, 2, 0)
+)
+```
+ Among the numeric predictors in delivery_train, freight_value has the strongest linear correlation with delivery_days ($r = 0.213$), followed weakly by product_weight_g ($r = 0.087$) and price ($r = 0.062$), while product_photos_qty is essentially flat ($r = -0.025$). Notice also that freight_value correlates moderately with product_weight_g ($r = 0.602$) and price ($r = 0.407$), which makes regularized models (Lasso and Ridge) useful when combining correlated item attributes alongside geography and timing.
+ 
+
+```{r}
+cat_state_summary <- delivery_train |>
+  group_by(customer_state) |>
+  summarise(
+    n_rows = n(),
+    mean_days = mean(delivery_days),
+    median_days = median(delivery_days),
+    .groups = "drop"
+  ) |>
+  arrange(desc(mean_days))
+
+kable(
+  head(cat_state_summary, 10),
+  digits = 2,
+  format.args = list(big.mark = ","),
+  col.names = c("Customer State", "Training Rows", "Mean Days", "Median Days"),
+  caption = "Top 10 customer states by mean delivery_days in training data"
+)
+```
+
+ In the training set, remote northern and northeastern destination states experience substantially longer transit times than the overall 12.01-day average—led by AP (mean 30.03 days, median 24.5 days across 60 rows), RR (mean 29.59 days, median 25.5 days across 32 rows), and AM (mean 25.73 days, median 25.0 days across 130 rows). Notice also that several of these slower states have very small sample sizes (under 2% of the 88,156 training rows, i.e., fewer than ~1,763 rows), which is why step_other(threshold = 0.02) groups low-frequency states into an "other" bucket before creating dummy variables so models do not overfit sparse state indicators.
+
+---
+
+
+## Step 4: Defining Four Recipes (`recipes`)
+
+Defines four recipes with progressive predictor sets and uses `step_normalize()` on numeric predictors (plus `step_other()` and `step_dummy()` on categorical predictors) inside the recipe pipeline[cite: 6, 7, 27]. Because `step_dummy()` converts categorical columns into numeric `0/1` indicator columns, Lasso and Ridge (`glmnet`) can use recipes that include dummy-encoded categorical predictors[cite: 7, 9, 27, 49].
+
+```{r}
+# Recipe 1: Simple numeric recipe (freight and weight)
+recipe_1 <- recipe(delivery_days ~ freight_value + product_weight_g, data = delivery_train) |>
+  step_normalize(all_numeric_predictors())
+
+# Recipe 2: Pick-and-choose geography + purchase month
+recipe_2 <- recipe(delivery_days ~ customer_state + seller_state + purchase_month, data = delivery_train) |>
+  step_other(all_nominal_predictors(), threshold = 0.02) |>
+  step_dummy(all_nominal_predictors())
+
+# Recipe 3: Combined numeric + geography + month
+recipe_3 <- recipe(
+  delivery_days ~ freight_value + product_weight_g + customer_state + seller_state + purchase_month,
+  data = delivery_train
+) |>
+  step_other(all_nominal_predictors(), threshold = 0.02) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_normalize(all_numeric_predictors())
+
+# Recipe 4: Broader set adding product category and item price
+recipe_4 <- recipe(
+  delivery_days ~ freight_value + price + product_weight_g + customer_state + seller_state +
+    purchase_month + product_category_name_english,
+  data = delivery_train
+) |>
+  step_other(all_nominal_predictors(), threshold = 0.02) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_normalize(all_numeric_predictors())
+
+recipe_1
+```
+ Moving from `recipe_1` (2 numeric predictors) through `recipe_2` (geography and month) and `recipe_3` (combined core features) to `recipe_4` (adding category and price) tests whether richer inputs reduce out-of-sample error[cite: 27, 32].
+
+---
+
+## Step 5: Naive Baseline and Model Specifications (`parsnip` + `workflows`)
+ Computes a naive baseline (predicting the training mean `delivery_days` on `delivery_test`) and fits targeted `parsnip` workflows—Linear Regression (`lm`) on `recipe_1` and `recipe_2`, Lasso (`glmnet`, `mixture = 1`) and Ridge (`glmnet`, `mixture = 0`) on `recipe_3`, and Decision Tree (`rpart`) on `recipe_4`—on `delivery_train` only[cite: 11, 27, 28, 49]
+ 
+```{r}
+naive_mean_days <- mean(delivery_train$delivery_days)
+
+naive_preds <- delivery_test |>
+  mutate(.pred = naive_mean_days)
+
+naive_metrics <- naive_preds |>
+  metrics(truth = delivery_days, estimate = .pred) |>
+  mutate(model = "Naive Baseline (Train Mean)")
+
+lm_spec <- linear_reg() |>
+  set_engine("lm") |>
+  set_mode("regression")
+
+lasso_spec <- linear_reg(penalty = 0.1, mixture = 1) |>
+  set_engine("glmnet") |>
+  set_mode("regression")
+
+ridge_spec <- linear_reg(penalty = 0.1, mixture = 0) |>
+  set_engine("glmnet") |>
+  set_mode("regression")
+
+dt_spec <- decision_tree(cost_complexity = 0.001, tree_depth = 6) |>
+  set_engine("rpart") |>
+  set_mode("regression")
+
+wf_lm_r1 <- workflow() |>
+  add_recipe(recipe_1) |>
+  add_model(lm_spec) |>
+  fit(data = delivery_train)
+
+wf_lm_r2 <- workflow() |>
+  add_recipe(recipe_2) |>
+  add_model(lm_spec) |>
+  fit(data = delivery_train)
+
+wf_lasso_r3 <- workflow() |>
+  add_recipe(recipe_3) |>
+  add_model(lasso_spec) |>
+  fit(data = delivery_train)
+
+wf_ridge_r3 <- workflow() |>
+  add_recipe(recipe_3) |>
+  add_model(ridge_spec) |>
+  fit(data = delivery_train)
+
+wf_dt_r4 <- workflow() |>
+  add_recipe(recipe_4) |>
+  add_model(dt_spec) |>
+  fit(data = delivery_train)
+
+tidy(wf_lm_r1)
+```
+ In the simple numeric linear model (wf_lm_r1 on recipe_1, where predictors are normalized to mean 0 and SD 1), the intercept is about 12.01 days at average freight_value and product_weight_g. A 1-SD increase in freight_value is associated with roughly +2.41 more delivery days ($p < 2.2 \times 10^{-16}$), whereas a 1-SD increase in product_weight_g has a small negative coefficient of about $-0.62$ days ($p = 1.70 \times 10^{-56}$) once freight_value is held constant—reflecting the correlation between weight and freight cost seen earlier, as well as why simple two-feature linear models have limitations before adding geography, timing, and item details.
+ 
+---
+
+```{r}
+dir.create("data", showWarnings = FALSE)
+write_rds(delivery_train, "data/delivery_train.rds")
+write_rds(wf_ridge_r3, "data/wf_ridge_r3.rds")
+```
+
+
+
+## Step 6: Test-Set Predictions, Model Comparison (`RMSE`, `MAE`, `R²`), and Diagnostics 
+ Evaluates all models on `delivery_test` using `rmse`, `mae`, and `rsq` (all in raw days for `RMSE` and `MAE`), and plots predicted vs. actual values, residuals, and the decision tree[cite: 29, 31, 50, 54, 60]
+ 
+```{r}
+preds_lm_r1 <- predict(wf_lm_r1, new_data = delivery_test) |>
+  bind_cols(delivery_test)
+
+preds_lm_r2 <- predict(wf_lm_r2, new_data = delivery_test) |>
+  bind_cols(delivery_test)
+
+preds_lasso_r3 <- predict(wf_lasso_r3, new_data = delivery_test) |>
+  bind_cols(delivery_test)
+
+preds_ridge_r3 <- predict(wf_ridge_r3, new_data = delivery_test) |>
+  bind_cols(delivery_test)
+
+preds_dt_r4 <- predict(wf_dt_r4, new_data = delivery_test) |>
+  bind_cols(delivery_test)
+
+m_lm_r1    <- preds_lm_r1    |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "LM (Recipe 1)")
+m_lm_r2    <- preds_lm_r2    |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "LM (Recipe 2)")
+m_lasso_r3 <- preds_lasso_r3 |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "Lasso (Recipe 3)")
+m_ridge_r3 <- preds_ridge_r3 |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "Ridge (Recipe 3)")
+m_dt_r4    <- preds_dt_r4    |> metrics(truth = delivery_days, estimate = .pred) |> mutate(model = "Decision Tree (Recipe 4)")
+
+all_metrics <- bind_rows(naive_metrics, m_lm_r1, m_lm_r2, m_lasso_r3, m_ridge_r3, m_dt_r4) |>
+  select(model, .metric, .estimate) |>
+  pivot_wider(names_from = .metric, values_from = .estimate) |>
+  arrange(rmse)
+
+kable(
+  all_metrics,
+  digits = 3,
+  col.names = c("Model", "RMSE (Days)", "R²", "MAE (Days)"),
+  caption = "Test-set performance across baseline and candidate models (lower RMSE/MAE is better; higher R² is better)"
+)
+```
+
+ -Best overall baseline performance: Ridge (Recipe 3) leads the test set on both RMSE (7.862 days) and $R^2$ (0.251), while tying closely with Decision Tree (Recipe 4) on MAE (5.224 days vs. 5.222 days). Compared to the naive training-mean baseline (RMSE 9.085 days, MAE 6.286 days), Ridge (Recipe 3) cuts RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%).  
+ 
+ -Geography and purchase month carry the biggest lift: LM (Recipe 2)—using only customer_state, seller_state, and purchase_month—reaches 7.889 days RMSE, 5.260 days MAE, and 0.246 $R^2$, far outperforming LM (Recipe 1) (RMSE 8.872 days, MAE 6.060 days, $R^2$ 0.046), which uses only normalized freight_value and product_weight_g.  
+ 
+ -Close race among richer baseline models: Ridge (Recipe 3), LM (Recipe 2), Lasso (Recipe 3; RMSE 7.891 days, MAE 5.243 days, $R^2$ 0.246), and Decision Tree (Recipe 4; RMSE 7.937 days, MAE 5.222 days, $R^2$ 0.237) all cluster tightly around ~7.86–7.94 days RMSE and ~5.22–5.26 days MAE.  
+ 
+ -Practical takeaway for management: Adding origin/destination geography and timing explains roughly a quarter of test-set variance ($R^2 \approx 0.25$) and trims typical absolute error by ~1.06 days per item compared to a constant average, though ~5.2 days of average error and ~7.9 days of RMSE still leave room for unmeasured transit/carrier factors and extreme tail delays.
+ 
+ 
+```{r}
+best_model_name <- all_metrics$model[1]
+best_preds <- switch(
+  best_model_name,
+  "Naive Baseline (Train Mean)" = naive_preds,
+  "LM (Recipe 1)" = preds_lm_r1,
+  "LM (Recipe 2)" = preds_lm_r2,
+  "Lasso (Recipe 3)" = preds_lasso_r3,
+  "Ridge (Recipe 3)" = preds_ridge_r3,
+  "Decision Tree (Recipe 4)" = preds_dt_r4
+) |>
+  mutate(residual = delivery_days - .pred)
+
+ggplot(best_preds, aes(x = delivery_days, y = .pred)) +
+  geom_point(alpha = 0.25, color = "#2b8cbe") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "#d95f02", linewidth = 0.9) +
+  labs(
+    title = paste("Predicted vs. Actual Delivery Days:", best_model_name),
+    subtitle = "Points below the dashed 45-degree line indicate under-prediction on slower orders",
+    x = "Actual delivery_days (Test Set)",
+    y = "Predicted delivery_days"
+  ) +
+  theme_minimal()
+
+ggplot(best_preds, aes(x = .pred, y = residual)) +
+  geom_point(alpha = 0.25, color = "#2b8cbe") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#d95f02", linewidth = 0.9) +
+  labs(
+    title = paste("Residuals vs. Predicted Delivery Days:", best_model_name),
+    subtitle = "Positive residuals (above zero) show actual delivery days exceeding predictions",
+    x = "Predicted delivery_days",
+    y = "Residual (Actual - Predicted Days)"
+  ) +
+  theme_minimal()
+``` 
+ -Strong under-prediction on long-tail deliveries: In the predicted-vs.-actual plot for Ridge (Recipe 3), most predictions cluster between roughly 5 and 25 days, while a wide tail of actual deliveries stretches past 50 to over 150 days well below the 45-degree dashed line. Because the model predicts conditional averages on a right-skewed target, it systematically under-predicts severe delivery delays.
+ 
+ -Positive skew in residuals: In the residuals-vs.-predicted plot, points lie mostly within roughly $\pm 15$ days around zero for typical predictions (~5–25 days), but large positive residuals (Actual - Predicted > 0, extending up to ~150 days) appear whenever extreme delays occur.
+ 
+ -Operational takeaway for management: Ridge (Recipe 3) tracks typical order timelines reasonably well, but a single point estimate will miss extreme outlier delays—so for customer ETA messaging or exception flagging, teams should pair point estimates with buffer windows or separate delay-risk monitoring rather than relying on average predictions alone
+

@@ -1,108 +1,356 @@
 ---
 title: "Conclusion"
-subtitle: "What drives Olist delivery times, and what logistics and operations teams should do with that"
+subtitle: "What drives Olist delivery times, and what logistics and operations teams should do about it"
+execute:
+  warning: false
+  message: false
 ---
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(tidymodels)
+library(glmnet)
+library(rpart)
+library(knitr)
+tidymodels_prefer()
+
+needed <- c("data/delivery_train_v2.rds", "data/final_lasso_r3.rds",
+            "data/final_tree_r3.rds", "data/model_results.rds",
+            "data/test_preds_tree_r3.rds")
+missing_files <- needed[!file.exists(needed)]
+if (length(missing_files) > 0) {
+  stop("Missing model output files: ", paste(missing_files, collapse = ", "))
+}
+
+train      <- read_rds("data/delivery_train_v2.rds")
+fit_lasso3 <- read_rds("data/final_lasso_r3.rds")
+fit_tree3  <- read_rds("data/final_tree_r3.rds")
+results    <- read_rds("data/model_results.rds")
+test_preds <- read_rds("data/test_preds_tree_r3.rds")
+
+get_metric <- function(rec, mod, met) {
+  results[results$recipe == rec & results$model == mod, ][[met]]
+}
+
+best_row <- results |>
+  filter(recipe != "Benchmark") |>
+  slice_min(mae, n = 1, with_ties = FALSE)
+
+naive_mae  <- get_metric("Benchmark", "Naive (train mean)", "mae")
+naive_rmse <- get_metric("Benchmark", "Naive (train mean)", "rmse")
+olist_mae  <- get_metric("Benchmark", "Olist estimate only (LM)", "mae")
+olist_r2   <- get_metric("Benchmark", "Olist estimate only (LM)", "rsq_trad")
+draft_mae  <- get_metric("Benchmark", "First-draft ridge (original features)", "mae")
+draft_r2   <- get_metric("Benchmark", "First-draft ridge (original features)", "rsq_trad")
+
+# Olist's promise is the estimated delivery date shown at checkout. An order is late if it
+# arrives after that date. Padding is how many days longer the promise was than the actual delivery
+mean_actual <- mean(test_preds$delivery_days)
+olist_late  <- mean(test_preds$delivery_days > test_preds$estimated_days)
+olist_early <- mean(test_preds$delivery_days < test_preds$estimated_days)
+mean_olist_padding <- mean(test_preds$estimated_days - test_preds$delivery_days)
+```
 
 ## The answer in one paragraph
 
-Delivery time on Olist is driven primarily by origin and destination geography (`customer_state` and `seller_state`) and purchase timing (`purchase_month`), with item weight and freight cost playing a smaller supporting role. Across 110,196 order-item rows, raw `delivery_days` averages 12.01 days (median 10 days, SD 9.45 days, max 209 days), with remote northern and northeastern states like AP, RR, and AM averaging roughly 25.7 to 30.0 days. Our top baseline workflow— Ridge on Recipe 3—predicts unseen test orders (`22,040` rows) to within 5.224 days MAE and 7.862 days RMSE ($R^2 = 0.251$), cutting RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%) compared to predicting the training-set average every time (9.085 days RMSE, 6.286 days MAE).
-
+Delivery time on Olist is driven mainly by **route**: where the seller is, where the customer is, and whether the two are in the same state. Product and order characteristics add a smaller amount, and purchase timing adds very little beyond a few slow months. The best model (`r best_row$model` on `r best_row$recipe`) predicts delivery time on unseen orders to within about **`r round(best_row$mae, 1)` days** on average and explains about **`r round(100 * best_row$rsq_trad)`%** of the variation, using only information available at checkout. That is `r round(100 * (1 - best_row$mae / naive_mae))`% lower error than always predicting the average (`r round(naive_mae, 1)` days), and `r round(100 * (1 - best_row$mae / draft_mae))`% lower than the first-draft model (`r round(draft_mae, 1)` days), which used fewer features and was scored on a split that did not keep orders together. Olist's own checkout estimate is much looser: on its own it explains only `r round(100 * olist_r2)`% of the variation, and on the test orders it is on average `r round(mean_olist_padding, 1)` days longer than what actually happened. What follows turns those findings into concrete order scenarios and recommendations.
 
 ---
 
-## Four order scenarios, predicted
+## How delivery time varies by route
 
-The clearest way to show what the model does is to score concrete checkout scenarios with `predict()` on our fitted **Ridge (Recipe 3)** workflow and compare each prediction against a single training-mean rule (`12.01` days).
-
-
+We group test orders into route tiers: orders where seller and customer are in the same state, and cross-state orders by the customer's macro-region. The table compares what customers were promised, what actually happened, and how well the model did.
 
 ```{r}
-#| label: scenario-predictions
-library(tidyverse)
-library(tidymodels)
-library(knitr)
+#| label: route-tiers
+# Brazil's five macro-regions, used to group destination states into service tiers
+macro_region <- function(state) {
+  case_when(
+    state %in% c("AC", "AM", "AP", "PA", "RO", "RR", "TO") ~ "North",
+    state %in% c("AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE") ~ "Northeast",
+    state %in% c("DF", "GO", "MS", "MT") ~ "Center-West",
+    state %in% c("ES", "MG", "RJ", "SP") ~ "Southeast",
+    state %in% c("PR", "RS", "SC") ~ "South",
+    TRUE ~ "Other"
+  )
+}
 
+tier_levels <- c("Same state", "Cross-state to Southeast", "Cross-state to South",
+                 "Cross-state to Center-West", "Cross-state to Northeast",
+                 "Cross-state to North")
 
-
-# load saved objects if written from modeling.qmd
-
-delivery_train <- read_rds("data/delivery_train.rds")
-wf_ridge_r3 <- read_rds("data/wf_ridge_r3.rds")
-
-new_orders <- tibble(
-  scenario = c(
-    "Local / nearby state, light item, off-peak month",
-    "Mid-distance route, moderate freight & weight",
-    "Long-haul route, heavy item & higher freight",
-    "Peak-season order with higher freight & weight"
-  ),
-  freight_value = c(12, 22, 45, 38),
-  product_weight_g = c(400, 1800, 8500, 5000),
-  customer_state = factor(c("SP", "RJ", "AM", "BA"), levels = levels(delivery_train$customer_state)),
-  seller_state = factor(c("SP", "SP", "SP", "SP"), levels = levels(delivery_train$seller_state)),
-  purchase_month = factor(c("4", "8", "11", "11"), levels = levels(delivery_train$purchase_month))
-)
-
-naive_rule_days <- round(mean(delivery_train$delivery_days), 1)
-
-scored_orders <- predict(wf_ridge_r3, new_data = new_orders) |>
-  bind_cols(new_orders) |>
+tp <- test_preds |>
   mutate(
-    predicted_days = round(.pred, 1),
-    naive_rule = naive_rule_days,
-    naive_diff = round(naive_rule - predicted_days, 1)
-  ) |>
-  select(scenario, predicted_days, naive_rule, naive_diff)
+    route_tier = if_else(
+      same_state == "same", "Same state",
+      paste0("Cross-state to ", macro_region(as.character(customer_state)))
+    ),
+    route_tier = factor(route_tier, levels = tier_levels)
+  )
 
-kable(
-  scored_orders,
-  col.names = c("Order Scenario", "Predicted Days", "Naive Rule (Days)", "Naive - Predicted"),
-  caption = "Sample checkout scenarios scored with Ridge (Recipe 3) vs. training-mean baseline"
-)
+# For each tier: promise vs. actual, plus the 10th and 90th percentile of the residual
+# (actual minus predicted), which bound the middle 80% of outcomes around a prediction
+tier_tbl <- tp |>
+  group_by(route_tier) |>
+  summarise(
+    n = n(),
+    actual = mean(delivery_days),
+    olist = mean(estimated_days),
+    padding = mean(estimated_days - delivery_days),
+    olist_late = mean(delivery_days > estimated_days),
+    mae = mean(abs(residual)),
+    q10 = quantile(residual, 0.1, names = FALSE),
+    q90 = quantile(residual, 0.9, names = FALSE),
+    .groups = "drop"
+  )
+
+tier_tbl |>
+  transmute(
+    `Route tier` = as.character(route_tier),
+    `Test rows` = format(n, big.mark = ","),
+    `Avg actual days` = round(actual, 1),
+    `Avg Olist estimate` = round(olist, 1),
+    `Avg padding (estimate - actual)` = round(padding, 1),
+    `Late vs. Olist estimate` = scales::percent(olist_late, accuracy = 0.1),
+    `Model MAE (days)` = round(mae, 1),
+    `80% window around prediction (days)` = sprintf("%+.0f to %+.0f", q10, q90)
+  ) |>
+  kable(caption = "Delivery performance by route tier (test set, decision tree on Recipe 3)")
 ```
 
 ```{r}
-#| label: scenario-chart
-ggplot(scored_orders, aes(x = predicted_days, y = reorder(scenario, predicted_days))) +
-  geom_col(fill = "#2b8cbe", width = 0.6) +
+#| label: tier-plot
+#| fig-cap: "Average actual delivery time vs. Olist's estimate, by route tier (test set)"
+#| fig-height: 4.5
+tier_tbl |>
+  select(route_tier, Actual = actual, `Olist estimate` = olist) |>
+  pivot_longer(-route_tier, names_to = "measure", values_to = "days") |>
+  ggplot(aes(x = days, y = fct_rev(route_tier), fill = measure)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.7) +
+  scale_fill_manual(values = c("Actual" = "#2b8cbe", "Olist estimate" = "#d95f02")) +
   labs(
-    title = "Same Store Network, Different Checkout Profiles",
-    subtitle = "Predicted delivery_days from Ridge (Recipe 3)",
-    x = "Predicted Delivery Days",
-    y = NULL
+    title = "Olist's estimate is padded on every route, and the padding differs by route",
+    x = "Average days", y = NULL, fill = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: tier-values
+#| include: false
+fast_tier  <- tier_tbl$route_tier[which.min(tier_tbl$actual)]
+slow_tier  <- tier_tbl$route_tier[which.max(tier_tbl$actual)]
+fast_days  <- min(tier_tbl$actual)
+slow_days  <- max(tier_tbl$actual)
+pad_hi_tier <- tier_tbl$route_tier[which.max(tier_tbl$padding)]
+pad_lo_tier <- tier_tbl$route_tier[which.min(tier_tbl$padding)]
+pad_hi <- max(tier_tbl$padding)
+pad_lo <- min(tier_tbl$padding)
+wide_tier <- tier_tbl$route_tier[which.max(tier_tbl$q90 - tier_tbl$q10)]
+wide_width <- max(tier_tbl$q90 - tier_tbl$q10)
+narrow_width <- min(tier_tbl$q90 - tier_tbl$q10)
+mae_hi_tier <- tier_tbl$route_tier[which.max(tier_tbl$mae)]
+mae_hi <- max(tier_tbl$mae)
+mae_lo <- min(tier_tbl$mae)
+```
+
+**What this shows**
+
+- **Route is the biggest divide.** Average delivery time ranges from `r round(fast_days, 1)` days (`r fast_tier`) to `r round(slow_days, 1)` days (`r slow_tier`), a gap of about `r round(slow_days / fast_days, 1)` times.
+- **The padding is uneven.** Olist's estimate is longer than actual delivery by `r round(pad_lo, 1)` days on the tier with the least padding (`r pad_lo_tier`) and `r round(pad_hi, 1)` days on the tier with the most (`r pad_hi_tier`). Overall, `r scales::percent(olist_early, accuracy = 1)` of test orders arrive before the estimated date and `r scales::percent(olist_late, accuracy = 0.1)` arrive after it.
+- **The model is least certain where routes are long.** Its average error is `r round(mae_lo, 1)` days on the most predictable tier and `r round(mae_hi, 1)` days on `r mae_hi_tier`. The 80% window (the range that contains the middle 80% of outcomes around the prediction) is about `r round(narrow_width)` days wide on the narrowest tier and `r round(wide_width)` days wide on `r wide_tier`.
+
+---
+
+## Six order scenarios, predicted
+
+To make the model concrete, we score six "typical order" profiles. For each one we take real training orders on that route (seller state to customer state), use their median freight, weight, price, size, and Olist estimate, and set the purchase month. August is a fast month in the exploration, and November is a slow one. Both the lasso (the interpretable linear model) and the decision tree (the most accurate model) score each profile.
+
+```{r}
+#| label: scenarios
+# Most common category among a route's orders
+mode_level <- function(x) {
+  tab <- table(as.character(x))
+  x[which(as.character(x) == names(which.max(tab)))[1]]
+}
+
+# A "typical order" on a route: median values for numeric fields and the most common
+# category for the rest, taken from real training orders, with the purchase month set explicitly
+build_scenario <- function(label, seller, cust, month) {
+  rows <- train |> filter(seller_state == seller, customer_state == cust)
+  stopifnot(nrow(rows) > 0)
+
+  rows |>
+    summarise(
+      across(where(is.numeric), \(x) median(x, na.rm = TRUE)),
+      across(where(is.factor), mode_level)
+    ) |>
+    select(-delivery_days) |>
+    mutate(
+      order_id = "scenario",
+      purchase_month = factor(as.character(month), levels = levels(train$purchase_month)),
+      label = label,
+      n_similar = nrow(rows),
+      route_median_days = median(rows$delivery_days)
+    )
+}
+
+scenario_def <- tribble(
+  ~label,                                   ~seller, ~cust, ~month,
+  "Same state (SP to SP), off-peak (Aug)",  "SP",    "SP",  8,
+  "Same state (SP to SP), peak (Nov)",      "SP",    "SP",  11,
+  "Neighbouring state (SP to RJ), Aug",     "SP",    "RJ",  8,
+  "Northeast (SP to BA), off-peak (Aug)",   "SP",    "BA",  8,
+  "Northeast (SP to BA), peak (Nov)",       "SP",    "BA",  11,
+  "Remote north (SP to AM), off-peak (Aug)", "SP",   "AM",  8
+)
+
+scn_df <- pmap(scenario_def, build_scenario) |> list_rbind()
+
+scn_res <- scn_df |>
+  mutate(
+    lasso_pred = predict(fit_lasso3, new_data = scn_df)$.pred,
+    tree_pred  = predict(fit_tree3,  new_data = scn_df)$.pred,
+    olist_estimate = estimated_days
+  ) |>
+  select(label, n_similar, route_median_days, olist_estimate, lasso_pred, tree_pred)
+
+scn_res |>
+  transmute(
+    Scenario = label,
+    `Similar training orders` = format(n_similar, big.mark = ","),
+    `Route median, all months (days)` = round(route_median_days, 1),
+    `Olist estimate (days)` = round(olist_estimate, 1),
+    `Lasso prediction (days)` = round(lasso_pred, 1),
+    `Tree prediction (days)` = round(tree_pred, 1)
+  ) |>
+  kable(caption = "Predicted delivery days for six typical order profiles")
+```
+
+```{r}
+#| label: scenario-plot
+#| fig-cap: "Model prediction (bars) vs. Olist's checkout estimate (diamonds) for six order profiles"
+#| fig-height: 4.5
+scn_res |>
+  mutate(label = fct_reorder(label, tree_pred)) |>
+  ggplot(aes(y = label)) +
+  geom_col(aes(x = tree_pred), fill = "#2b8cbe", width = 0.6) +
+  geom_point(aes(x = olist_estimate), shape = 18, size = 4, color = "#d95f02") +
+  labs(
+    title = "Same seller, different routes: predicted delivery time",
+    subtitle = "Bars: decision tree prediction. Diamonds: Olist's estimate for the same profile",
+    x = "Days", y = NULL
   ) +
   theme_minimal(base_size = 12)
 ```
 
- -Clear ranking across checkout profiles: The bar chart and scenario table show Ridge (Recipe 3) ordering the four scenarios cleanly from shortest to longest predicted transit time: 7.9 days for a local, light, off-peak order; 11.7 days for a mid-distance order with moderate freight and weight; 19.4 days for a peak-season order with higher freight and weight; and 22.9 days for a long-haul order with a heavy item and higher freight.
- 
-  -Nearly a 3x gap between short and long-haul profiles: Even within the same network, the long-haul heavy/high-freight profile (22.9 days) is predicted to take almost three times as long as the local, light, off-peak profile (7.9 days).
-  
-  
- -A single 12-day average misleads in both directions: Compared to the flat 12-day naive rule, the average slightly over-estimates the local order by 4.1 days (+4.1), aligns closely with the mid-distance order (0.3 days difference), and under-estimates both the peak-season higher-freight/weight order by 7.4 days (-7.4) and the long-haul heavy/high-freight order by 10.9 days (-10.9).
- 
-  -Operational takeaway: Using route-, month-, and item-aware predictions avoids over-promising fast delivery on long-haul or peak orders while giving more realistic expectations on local shipments.
+```{r}
+#| label: scenario-values
+#| include: false
+lo_row <- scn_res[which.min(scn_res$tree_pred), ]
+hi_row <- scn_res[which.max(scn_res$tree_pred), ]
+same_off  <- scn_res$tree_pred[1]
+same_peak <- scn_res$tree_pred[2]
+ne_off    <- scn_res$tree_pred[4]
+ne_peak   <- scn_res$tree_pred[5]
+lasso_same_off  <- scn_res$lasso_pred[1]
+lasso_same_peak <- scn_res$lasso_pred[2]
+lasso_ne_off    <- scn_res$lasso_pred[4]
+lasso_ne_peak   <- scn_res$lasso_pred[5]
+max_model_gap <- max(abs(scn_res$lasso_pred - scn_res$tree_pred))
+olist_gap <- scn_res$olist_estimate - scn_res$tree_pred
+```
 
-  
-  
+**What the scenarios show**
+
+- **Route changes the answer more than anything else.** Predicted delivery runs from `r round(lo_row$tree_pred, 1)` days (`r lo_row$label`) to `r round(hi_row$tree_pred, 1)` days (`r hi_row$label`) according to the tree.
+- **The peak month adds days on the same route.** Moving the same-state order from August to November changes the tree prediction by `r sprintf("%+.1f", same_peak - same_off)` days (lasso: `r sprintf("%+.1f", lasso_same_peak - lasso_same_off)`), and moving the Bahia order by `r sprintf("%+.1f", ne_peak - ne_off)` days (lasso: `r sprintf("%+.1f", lasso_ne_peak - lasso_ne_off)`). The size of the seasonal effect depends on the route, which only the tree can express fully.
+- **The two models mostly agree.** They differ by at most `r round(max_model_gap, 1)` days across the six profiles. Where they disagree most, treat the prediction as less certain.
+- **Olist's estimate also changes with route, but not in step with the model.** The estimate minus the tree prediction ranges from `r round(min(olist_gap), 1)` to `r round(max(olist_gap), 1)` days across the six profiles, so the amount of padding is not the same for every route.
+
+These profiles use real typical values for each route, and the purchase year is set to the most common year on that route. They illustrate the model; they are not forecasts of any single order.
+
+---
+
+## Late deliveries by purchase month
+
+```{r}
+#| label: monthly
+month_tbl <- tp |>
+  mutate(month_num = as.integer(as.character(purchase_month))) |>
+  group_by(month_num) |>
+  summarise(
+    n = n(),
+    actual = mean(delivery_days),
+    olist = mean(estimated_days),
+    late = mean(delivery_days > estimated_days),
+    .groups = "drop"
+  ) |>
+  mutate(month = factor(month.abb[month_num], levels = month.abb))
+
+ggplot(month_tbl, aes(x = month, y = late)) +
+  geom_col(fill = "#2b8cbe", width = 0.7) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Share of orders arriving after Olist's estimate, by purchase month",
+    subtitle = "Test set, all years pooled",
+    x = NULL, y = "Late vs. estimate"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+#| label: monthly-values
+#| include: false
+late_top <- month_tbl |> arrange(desc(late)) |> slice_head(n = 3)
+late_low <- month_tbl |> arrange(late) |> slice_head(n = 1)
+slow_month_note <- if (any(as.character(late_top$month) %in% c("Feb", "Mar", "Nov", "Dec"))) {
+  "Some of these are months the exploration page flagged as slow (February, March, November, December)."
+} else {
+  "These differ from the slow months flagged in the exploration page, which is worth a closer look."
+}
+```
+
+The late share is highest for orders placed in `r paste(as.character(late_top$month), collapse = ", ")` (`r paste(scales::percent(late_top$late, accuracy = 0.1), collapse = ", ")`) and lowest in `r as.character(late_low$month)` (`r scales::percent(late_low$late, accuracy = 0.1)`). Months pool different years in a dataset that covers 2016 to 2018, so some of this reflects specific events or demand peaks in a single year, not a calendar pattern. `r slow_month_note`
+
+---
+
 ## What the team should do
 
-1. Set checkout ETAs by origin/destination state and month, not one flat average. Geography and purchase month alone (LM on Recipe 2, 7.889 days RMSE, $R^2 = 0.246$) capture almost all of the baseline gain over a simple numeric model (LM on Recipe 1, 8.872 days RMSE, $R^2 = 0.046$).
+1. **Make the delivery promise route-aware.** Set the checkout estimate from seller state, customer state, and month, instead of one rule for everything. The tier table shows how unevenly the current estimate is padded (`r round(pad_lo, 1)` days on `r pad_lo_tier`, `r round(pad_hi, 1)` days on `r pad_hi_tier`). A pilot of a route-aware promise on a few routes would show how many days could be saved without raising the late rate. *Measure it by:* average promised days and the late rate, by route tier.
 
-2. Use Ridge (Recipe 3) as the baseline ETA model. It edges out LM (Recipe 2), Lasso (Recipe 3) (7.891 days RMSE, 5.243 days MAE), and  Decision Tree (Recipe 4) (7.937 days RMSE, 5.222 days MAE) on test RMSE and $R^2$ while keeping predictions smooth across correlated numeric features (`freight_value` and `product_weight_g`).
+2. **Show a delivery window, not a single date.** Point predictions are good on average but miss the slow tail, and the width of the uncertainty depends on the route (about `r round(narrow_width)` days on the tightest tier and `r round(wide_width)` days on `r wide_tier`, measured as the middle 80% of outcomes). Offering "between day X and day Y" is more honest and matches how the model behaves. *Measure it by:* the share of orders that land inside the window, which should be close to the 80% it is designed for.
 
-3. Add an upper buffer window for long-haul and tail-risk orders. Because point predictions cluster around typical delivery windows (~5–25 days), extreme delays past 50–150+ days still produce large positive residuals (`Actual - Predicted > 0`). Pairing the point estimate with a delivery window helps manage expectations on slower routes.
+3. **Add a seasonal buffer for the slow months.** Orders placed in `r paste(as.character(late_top$month), collapse = ", ")` are late most often. Extend the promise or add carrier capacity in those months. Check whether the pattern holds in newer data before committing. *Measure it by:* the late rate in those months, year over year.
 
-4. Group low-volume states cleanly in baseline models. Using `step_other(threshold = 0.02)` prevents noisy estimates on small state samples in the training set while preserving signal from major and distinct regional patterns.
+4. **Treat the north and northeast as a separate service tier.** Routes into these regions are the slowest and the hardest to predict (the highest-error tier is `r mae_hi_tier`, with an average miss of `r round(mae_hi, 1)` days). Set separate expectations, review carrier performance on these lanes, and consider whether stocking inventory closer to these customers is worth testing. *Measure it by:* delivery time and prediction error on these lanes, tracked separately.
+
+5. **Test whether sourcing closer to the buyer helps.** Same-state routes are the fastest and the single most-used feature in the tree. That is an association, not proof that moving a seller would change delivery time, because sellers and buyers in the same state may also differ in carrier mix and product type. A small pilot, such as a "ships from your state" badge or search ranking, would show whether the effect is real. *Measure it by:* conversion and delivery time on the pilot group against a control.
+
+6. **Do not spend effort on purchase weekday, time of day, or listing quality.** Weekday and time of day barely moved delivery outcomes in the exploration, and listing-quality fields added nothing visible to the models. Put effort into route, carrier, and seller handling instead.
+
+7. **Look at seller handling time.** The shipping deadline the seller was given (`ship_window_days`) is one of the more-used features in the tree. We cannot tell from this data whether sellers who are given more time actually take more time, so this is a question to investigate with seller-level shipping timestamps.
+
+8. **Keep the model honest over time.** Retrain on recent orders at a regular interval, watch average error by route tier, and treat a sustained rise in error as a sign that carrier performance or demand has shifted.
 
 ---
 
 ## How far to trust it
 
- -Around 5.22 days MAE and **7.86 days RMSE on unseen test orders—useful for checkout ETA windows and capacity planning, but not exact to the single day on every shipment.
- 
- -Tail delays are still the hardest part: Residuals are skewed upward on extreme outliers where deliveries stretch far beyond typical transit times, so point estimates will under-predict severe exceptions.
- 
- -Random split tests "similar orders," not future shifts: The 80/20 split (`88,156` train / `22,040` test) measures generalization across orders from the historical dataset, not performance under future carrier changes or seasonal shifts.
- 
- -Order-item grain carries through: Because `delivery_days` is an order-level delivery duration repeated across items in multi-item orders (`110,196` rows), multi-item orders have slightly more weight in the metrics
+- **Accuracy is useful, not exact.** A typical miss is about `r round(best_row$mae, 1)` days, and the average error is much smaller than the error on the worst orders (RMSE `r round(best_row$rmse, 1)` days). This is good for checkout windows and capacity planning, not for day-exact commitments.
+- **The slow tail is still hard.** The model under-predicts the slowest orders, because it predicts a typical value for a right-skewed target. That is why we recommend a window with a buffer.
+- **A random split tests similar orders, not future ones.** The test orders come from the same 2016 to 2018 period as the training orders. The model has not been tested on a new carrier contract, a strike, or a different year.
+- **Single test set.** Differences of a few hundredths of a day between models are not meaningful.
+- **Order-item grain.** `delivery_days` is an order-level duration repeated across the items of an order, so multi-item orders carry slightly more weight in the metrics.
+- **Associations, not causes.** The importance scores and coefficients show what the models rely on to predict. They do not show what causes a delay, which is why recommendations 5 and 7 are framed as tests.
+- **Coarse geography.** Zip-code region is only a rough stand-in for distance, and the scenarios use median values for each route.
+
+## What would improve it next
+
+- **Real seller-to-customer distance** from Olist's geolocation table, which is the most promising feature not yet used.
+- **Stage-level timestamps** (approval, handoff to carrier, delivery), so seller handling time and carrier transit time can be modelled separately and each team can see its own share.
+- **A time-based test**: train on earlier months and test on later ones, which is a stricter check than a random split.
+- **Non-linear ensemble models and a log-transformed target.** Earlier experiments suggested these can lower typical error, at the cost of being harder to explain.

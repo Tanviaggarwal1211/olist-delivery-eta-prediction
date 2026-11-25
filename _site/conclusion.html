@@ -110,35 +110,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 }</script>
 <style>html{ scroll-behavior: smooth; }</style>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
-
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 </head>
 
@@ -196,9 +167,12 @@ window.Quarto = {
    
   <ul>
   <li><a href="#the-answer-in-one-paragraph" id="toc-the-answer-in-one-paragraph" class="nav-link active" data-scroll-target="#the-answer-in-one-paragraph">The answer in one paragraph</a></li>
-  <li><a href="#four-order-scenarios-predicted" id="toc-four-order-scenarios-predicted" class="nav-link" data-scroll-target="#four-order-scenarios-predicted">Four order scenarios, predicted</a></li>
+  <li><a href="#how-delivery-time-varies-by-route" id="toc-how-delivery-time-varies-by-route" class="nav-link" data-scroll-target="#how-delivery-time-varies-by-route">How delivery time varies by route</a></li>
+  <li><a href="#six-order-scenarios-predicted" id="toc-six-order-scenarios-predicted" class="nav-link" data-scroll-target="#six-order-scenarios-predicted">Six order scenarios, predicted</a></li>
+  <li><a href="#late-deliveries-by-purchase-month" id="toc-late-deliveries-by-purchase-month" class="nav-link" data-scroll-target="#late-deliveries-by-purchase-month">Late deliveries by purchase month</a></li>
   <li><a href="#what-the-team-should-do" id="toc-what-the-team-should-do" class="nav-link" data-scroll-target="#what-the-team-should-do">What the team should do</a></li>
   <li><a href="#how-far-to-trust-it" id="toc-how-far-to-trust-it" class="nav-link" data-scroll-target="#how-far-to-trust-it">How far to trust it</a></li>
+  <li><a href="#what-would-improve-it-next" id="toc-what-would-improve-it-next" class="nav-link" data-scroll-target="#what-would-improve-it-next">What would improve it next</a></li>
   </ul>
 </nav>
     </div>
@@ -208,7 +182,7 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <div class="quarto-title-block"><div><h1 class="title">Conclusion</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
-<p class="subtitle lead">What drives Olist delivery times, and what logistics and operations teams should do with that</p>
+<p class="subtitle lead">What drives Olist delivery times, and what logistics and operations teams should do about it</p>
 </div>
 
 
@@ -227,98 +201,154 @@ window.Quarto = {
 
 <section id="the-answer-in-one-paragraph" class="level2">
 <h2 class="anchored" data-anchor-id="the-answer-in-one-paragraph">The answer in one paragraph</h2>
-<p>Delivery time on Olist is driven primarily by origin and destination geography (<code>customer_state</code> and <code>seller_state</code>) and purchase timing (<code>purchase_month</code>), with item weight and freight cost playing a smaller supporting role. Across 110,196 order-item rows, raw <code>delivery_days</code> averages 12.01 days (median 10 days, SD 9.45 days, max 209 days), with remote northern and northeastern states like AP, RR, and AM averaging roughly 25.7 to 30.0 days. Our top baseline workflow— Ridge on Recipe 3—predicts unseen test orders (<code>22,040</code> rows) to within 5.224 days MAE and 7.862 days RMSE (<span class="math inline">\(R^2 = 0.251\)</span>), cutting RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%) compared to predicting the training-set average every time (9.085 days RMSE, 6.286 days MAE).</p>
+<p>Delivery time on Olist is driven mainly by <strong>route</strong>: where the seller is, where the customer is, and whether the two are in the same state. Product and order characteristics add a smaller amount, and purchase timing adds very little beyond a few slow months. The best model (Decision Tree on R3 + Olist estimate) predicts delivery time on unseen orders to within about <strong>4.8 days</strong> on average and explains about <strong>31%</strong> of the variation, using only information available at checkout. That is 24% lower error than always predicting the average (6.3 days), and 9% lower than the first-draft model (5.2 days), which used fewer features and was scored on a split that did not keep orders together. Olist’s own checkout estimate is much looser: on its own it explains only 15% of the variation, and on the test orders it is on average 11.5 days longer than what actually happened. What follows turns those findings into concrete order scenarios and recommendations.</p>
 <hr>
 </section>
-<section id="four-order-scenarios-predicted" class="level2">
-<h2 class="anchored" data-anchor-id="four-order-scenarios-predicted">Four order scenarios, predicted</h2>
-<p>The clearest way to show what the model does is to score concrete checkout scenarios with <code>predict()</code> on our fitted <strong>Ridge (Recipe 3)</strong> workflow and compare each prediction against a single training-mean rule (<code>12.01</code> days).</p>
+<section id="how-delivery-time-varies-by-route" class="level2">
+<h2 class="anchored" data-anchor-id="how-delivery-time-varies-by-route">How delivery time varies by route</h2>
+<p>We group test orders into route tiers: orders where seller and customer are in the same state, and cross-state orders by the customer’s macro-region. The table compares what customers were promised, what actually happened, and how well the model did.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidymodels)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># load saved objects if written from modeling.qmd</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>delivery_train <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/delivery_train.rds"</span>)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>wf_ridge_r3 <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/wf_ridge_r3.rds"</span>)</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>new_orders <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">scenario =</span> <span class="fu">c</span>(</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Local / nearby state, light item, off-peak month"</span>,</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mid-distance route, moderate freight &amp; weight"</span>,</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Long-haul route, heavy item &amp; higher freight"</span>,</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Peak-season order with higher freight &amp; weight"</span></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">freight_value =</span> <span class="fu">c</span>(<span class="dv">12</span>, <span class="dv">22</span>, <span class="dv">45</span>, <span class="dv">38</span>),</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">product_weight_g =</span> <span class="fu">c</span>(<span class="dv">400</span>, <span class="dv">1800</span>, <span class="dv">8500</span>, <span class="dv">5000</span>),</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">customer_state =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">"SP"</span>, <span class="st">"RJ"</span>, <span class="st">"AM"</span>, <span class="st">"BA"</span>), <span class="at">levels =</span> <span class="fu">levels</span>(delivery_train<span class="sc">$</span>customer_state)),</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">seller_state =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">"SP"</span>, <span class="st">"SP"</span>, <span class="st">"SP"</span>, <span class="st">"SP"</span>), <span class="at">levels =</span> <span class="fu">levels</span>(delivery_train<span class="sc">$</span>seller_state)),</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">purchase_month =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">"4"</span>, <span class="st">"8"</span>, <span class="st">"11"</span>, <span class="st">"11"</span>), <span class="at">levels =</span> <span class="fu">levels</span>(delivery_train<span class="sc">$</span>purchase_month))</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Brazil's five macro-regions, used to group destination states into service tiers</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>macro_region <span class="ot">&lt;-</span> <span class="cf">function</span>(state) {</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">case_when</span>(</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"AC"</span>, <span class="st">"AM"</span>, <span class="st">"AP"</span>, <span class="st">"PA"</span>, <span class="st">"RO"</span>, <span class="st">"RR"</span>, <span class="st">"TO"</span>) <span class="sc">~</span> <span class="st">"North"</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"AL"</span>, <span class="st">"BA"</span>, <span class="st">"CE"</span>, <span class="st">"MA"</span>, <span class="st">"PB"</span>, <span class="st">"PE"</span>, <span class="st">"PI"</span>, <span class="st">"RN"</span>, <span class="st">"SE"</span>) <span class="sc">~</span> <span class="st">"Northeast"</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"DF"</span>, <span class="st">"GO"</span>, <span class="st">"MS"</span>, <span class="st">"MT"</span>) <span class="sc">~</span> <span class="st">"Center-West"</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"ES"</span>, <span class="st">"MG"</span>, <span class="st">"RJ"</span>, <span class="st">"SP"</span>) <span class="sc">~</span> <span class="st">"Southeast"</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"PR"</span>, <span class="st">"RS"</span>, <span class="st">"SC"</span>) <span class="sc">~</span> <span class="st">"South"</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">"Other"</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>tier_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Same state"</span>, <span class="st">"Cross-state to Southeast"</span>, <span class="st">"Cross-state to South"</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>                 <span class="st">"Cross-state to Center-West"</span>, <span class="st">"Cross-state to Northeast"</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>                 <span class="st">"Cross-state to North"</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>tp <span class="ot">&lt;-</span> test_preds <span class="sc">|&gt;</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">route_tier =</span> <span class="fu">if_else</span>(</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>      same_state <span class="sc">==</span> <span class="st">"same"</span>, <span class="st">"Same state"</span>,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>      <span class="fu">paste0</span>(<span class="st">"Cross-state to "</span>, <span class="fu">macro_region</span>(<span class="fu">as.character</span>(customer_state)))</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">route_tier =</span> <span class="fu">factor</span>(route_tier, <span class="at">levels =</span> tier_levels)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>naive_rule_days <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">mean</span>(delivery_train<span class="sc">$</span>delivery_days), <span class="dv">1</span>)</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>scored_orders <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_ridge_r3, <span class="at">new_data =</span> new_orders) <span class="sc">|&gt;</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(new_orders) <span class="sc">|&gt;</span></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">predicted_days =</span> <span class="fu">round</span>(.pred, <span class="dv">1</span>),</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">naive_rule =</span> naive_rule_days,</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">naive_diff =</span> <span class="fu">round</span>(naive_rule <span class="sc">-</span> predicted_days, <span class="dv">1</span>)</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scenario, predicted_days, naive_rule, naive_diff)</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>  scored_orders,</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Order Scenario"</span>, <span class="st">"Predicted Days"</span>, <span class="st">"Naive Rule (Days)"</span>, <span class="st">"Naive - Predicted"</span>),</span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Sample checkout scenarios scored with Ridge (Recipe 3) vs. training-mean baseline"</span></span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co"># For each tier: promise vs. actual, plus the 10th and 90th percentile of the residual</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co"># (actual minus predicted), which bound the middle 80% of outcomes around a prediction</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>tier_tbl <span class="ot">&lt;-</span> tp <span class="sc">|&gt;</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(route_tier) <span class="sc">|&gt;</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(),</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">actual =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist =</span> <span class="fu">mean</span>(estimated_days),</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">padding =</span> <span class="fu">mean</span>(estimated_days <span class="sc">-</span> delivery_days),</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist_late =</span> <span class="fu">mean</span>(delivery_days <span class="sc">&gt;</span> estimated_days),</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">mae =</span> <span class="fu">mean</span>(<span class="fu">abs</span>(residual)),</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">q10 =</span> <span class="fu">quantile</span>(residual, <span class="fl">0.1</span>, <span class="at">names =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    <span class="at">q90 =</span> <span class="fu">quantile</span>(residual, <span class="fl">0.9</span>, <span class="at">names =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>tier_tbl <span class="sc">|&gt;</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Route tier</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.character</span>(route_tier),</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Test rows</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">format</span>(n, <span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Avg actual days</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(actual, <span class="dv">1</span>),</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Avg Olist estimate</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(olist, <span class="dv">1</span>),</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Avg padding (estimate - actual)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(padding, <span class="dv">1</span>),</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Late vs. Olist estimate</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(olist_late, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Model MAE (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(mae, <span class="dv">1</span>),</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">80% window around prediction (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sprintf</span>(<span class="st">"%+.0f to %+.0f"</span>, q10, q90)</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Delivery performance by route tier (test set, decision tree on Recipe 3)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
-<caption>Sample checkout scenarios scored with Ridge (Recipe 3) vs.&nbsp;training-mean baseline</caption>
+<caption>Delivery performance by route tier (test set, decision tree on Recipe 3)</caption>
 <colgroup>
-<col style="width: 49%">
-<col style="width: 15%">
-<col style="width: 18%">
-<col style="width: 18%">
+<col style="width: 14%">
+<col style="width: 5%">
+<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 17%">
+<col style="width: 13%">
+<col style="width: 9%">
+<col style="width: 19%">
 </colgroup>
 <thead>
 <tr class="header">
-<th style="text-align: left;">Order Scenario</th>
-<th style="text-align: right;">Predicted Days</th>
-<th style="text-align: right;">Naive Rule (Days)</th>
-<th style="text-align: right;">Naive - Predicted</th>
+<th style="text-align: left;">Route tier</th>
+<th style="text-align: left;">Test rows</th>
+<th style="text-align: right;">Avg actual days</th>
+<th style="text-align: right;">Avg Olist estimate</th>
+<th style="text-align: right;">Avg padding (estimate - actual)</th>
+<th style="text-align: left;">Late vs.&nbsp;Olist estimate</th>
+<th style="text-align: right;">Model MAE (days)</th>
+<th style="text-align: left;">80% window around prediction (days)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: left;">Local / nearby state, light item, off-peak month</td>
-<td style="text-align: right;">7.9</td>
-<td style="text-align: right;">12</td>
-<td style="text-align: right;">4.1</td>
+<td style="text-align: left;">Same state</td>
+<td style="text-align: left;">8,105</td>
+<td style="text-align: right;">7.3</td>
+<td style="text-align: right;">17.3</td>
+<td style="text-align: right;">9.9</td>
+<td style="text-align: left;">5.1%</td>
+<td style="text-align: right;">3.3</td>
+<td style="text-align: left;">-5 to +5</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Mid-distance route, moderate freight &amp; weight</td>
-<td style="text-align: right;">11.7</td>
-<td style="text-align: right;">12</td>
-<td style="text-align: right;">0.3</td>
+<td style="text-align: left;">Cross-state to Southeast</td>
+<td style="text-align: left;">7,511</td>
+<td style="text-align: right;">13.1</td>
+<td style="text-align: right;">25.5</td>
+<td style="text-align: right;">12.3</td>
+<td style="text-align: left;">8.6%</td>
+<td style="text-align: right;">5.4</td>
+<td style="text-align: left;">-7 to +8</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Long-haul route, heavy item &amp; higher freight</td>
-<td style="text-align: right;">22.9</td>
-<td style="text-align: right;">12</td>
-<td style="text-align: right;">-10.9</td>
+<td style="text-align: left;">Cross-state to South</td>
+<td style="text-align: left;">2,846</td>
+<td style="text-align: right;">13.9</td>
+<td style="text-align: right;">26.9</td>
+<td style="text-align: right;">13.1</td>
+<td style="text-align: left;">6.1%</td>
+<td style="text-align: right;">5.2</td>
+<td style="text-align: left;">-8 to +7</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Peak-season order with higher freight &amp; weight</td>
+<td style="text-align: left;">Cross-state to Center-West</td>
+<td style="text-align: left;">1,228</td>
+<td style="text-align: right;">14.5</td>
+<td style="text-align: right;">26.3</td>
+<td style="text-align: right;">11.8</td>
+<td style="text-align: left;">6.9%</td>
+<td style="text-align: right;">5.1</td>
+<td style="text-align: left;">-8 to +7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Cross-state to Northeast</td>
+<td style="text-align: left;">1,989</td>
 <td style="text-align: right;">19.4</td>
-<td style="text-align: right;">12</td>
-<td style="text-align: right;">-7.4</td>
+<td style="text-align: right;">30.6</td>
+<td style="text-align: right;">11.2</td>
+<td style="text-align: left;">13.5%</td>
+<td style="text-align: right;">6.9</td>
+<td style="text-align: left;">-8 to +13</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Cross-state to North</td>
+<td style="text-align: left;">360</td>
+<td style="text-align: right;">22.3</td>
+<td style="text-align: right;">38.3</td>
+<td style="text-align: right;">16.0</td>
+<td style="text-align: left;">8.1%</td>
+<td style="text-align: right;">8.0</td>
+<td style="text-align: left;">-11 to +12</td>
 </tr>
 </tbody>
 </table>
@@ -327,45 +357,280 @@ window.Quarto = {
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(scored_orders, <span class="fu">aes</span>(<span class="at">x =</span> predicted_days, <span class="at">y =</span> <span class="fu">reorder</span>(scenario, predicted_days))) <span class="sc">+</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">fill =</span> <span class="st">"#2b8cbe"</span>, <span class="at">width =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Same Store Network, Different Checkout Profiles"</span>,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Predicted delivery_days from Ridge (Recipe 3)"</span>,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Predicted Delivery Days"</span>,</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="cn">NULL</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tier_tbl <span class="sc">|&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(route_tier, <span class="at">Actual =</span> actual, <span class="st">`</span><span class="at">Olist estimate</span><span class="st">`</span> <span class="ot">=</span> olist) <span class="sc">|&gt;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>route_tier, <span class="at">names_to =</span> <span class="st">"measure"</span>, <span class="at">values_to =</span> <span class="st">"days"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> days, <span class="at">y =</span> <span class="fu">fct_rev</span>(route_tier), <span class="at">fill =</span> measure)) <span class="sc">+</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.75</span>), <span class="at">width =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Actual"</span> <span class="ot">=</span> <span class="st">"#2b8cbe"</span>, <span class="st">"Olist estimate"</span> <span class="ot">=</span> <span class="st">"#d95f02"</span>)) <span class="sc">+</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Olist's estimate is padded on every route, and the padding differs by route"</span>,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Average days"</span>, <span class="at">y =</span> <span class="cn">NULL</span>, <span class="at">fill =</span> <span class="cn">NULL</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div>
+<div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="conclusion_files/figure-html/scenario-chart-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="conclusion_files/figure-html/tier-plot-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Average actual delivery time vs.&nbsp;Olist’s estimate, by route tier (test set)</figcaption>
 </figure>
 </div>
 </div>
 </div>
-<p>-Clear ranking across checkout profiles: The bar chart and scenario table show Ridge (Recipe 3) ordering the four scenarios cleanly from shortest to longest predicted transit time: 7.9 days for a local, light, off-peak order; 11.7 days for a mid-distance order with moderate freight and weight; 19.4 days for a peak-season order with higher freight and weight; and 22.9 days for a long-haul order with a heavy item and higher freight.</p>
-<p>-Nearly a 3x gap between short and long-haul profiles: Even within the same network, the long-haul heavy/high-freight profile (22.9 days) is predicted to take almost three times as long as the local, light, off-peak profile (7.9 days).</p>
-<p>-A single 12-day average misleads in both directions: Compared to the flat 12-day naive rule, the average slightly over-estimates the local order by 4.1 days (+4.1), aligns closely with the mid-distance order (0.3 days difference), and under-estimates both the peak-season higher-freight/weight order by 7.4 days (-7.4) and the long-haul heavy/high-freight order by 10.9 days (-10.9).</p>
-<p>-Operational takeaway: Using route-, month-, and item-aware predictions avoids over-promising fast delivery on long-haul or peak orders while giving more realistic expectations on local shipments.</p>
+<p><strong>What this shows</strong></p>
+<ul>
+<li><strong>Route is the biggest divide.</strong> Average delivery time ranges from 7.3 days (Same state) to 22.3 days (Cross-state to North), a gap of about 3 times.</li>
+<li><strong>The padding is uneven.</strong> Olist’s estimate is longer than actual delivery by 9.9 days on the tier with the least padding (Same state) and 16 days on the tier with the most (Cross-state to North). Overall, 91% of test orders arrive before the estimated date and 7.4% arrive after it.</li>
+<li><strong>The model is least certain where routes are long.</strong> Its average error is 3.3 days on the most predictable tier and 8 days on Cross-state to North. The 80% window (the range that contains the middle 80% of outcomes around the prediction) is about 9 days wide on the narrowest tier and 23 days wide on Cross-state to North.</li>
+</ul>
+<hr>
+</section>
+<section id="six-order-scenarios-predicted" class="level2">
+<h2 class="anchored" data-anchor-id="six-order-scenarios-predicted">Six order scenarios, predicted</h2>
+<p>To make the model concrete, we score six “typical order” profiles. For each one we take real training orders on that route (seller state to customer state), use their median freight, weight, price, size, and Olist estimate, and set the purchase month. August is a fast month in the exploration, and November is a slow one. Both the lasso (the interpretable linear model) and the decision tree (the most accurate model) score each profile.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Most common category among a route's orders</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>mode_level <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  tab <span class="ot">&lt;-</span> <span class="fu">table</span>(<span class="fu">as.character</span>(x))</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  x[<span class="fu">which</span>(<span class="fu">as.character</span>(x) <span class="sc">==</span> <span class="fu">names</span>(<span class="fu">which.max</span>(tab)))[<span class="dv">1</span>]]</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># A "typical order" on a route: median values for numeric fields and the most common</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># category for the rest, taken from real training orders, with the purchase month set explicitly</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>build_scenario <span class="ot">&lt;-</span> <span class="cf">function</span>(label, seller, cust, month) {</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  rows <span class="ot">&lt;-</span> train <span class="sc">|&gt;</span> <span class="fu">filter</span>(seller_state <span class="sc">==</span> seller, customer_state <span class="sc">==</span> cust)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">nrow</span>(rows) <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  rows <span class="sc">|&gt;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>      <span class="fu">across</span>(<span class="fu">where</span>(is.numeric), \(x) <span class="fu">median</span>(x, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>      <span class="fu">across</span>(<span class="fu">where</span>(is.factor), mode_level)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>delivery_days) <span class="sc">|&gt;</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>      <span class="at">order_id =</span> <span class="st">"scenario"</span>,</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">purchase_month =</span> <span class="fu">factor</span>(<span class="fu">as.character</span>(month), <span class="at">levels =</span> <span class="fu">levels</span>(train<span class="sc">$</span>purchase_month)),</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">label =</span> label,</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>      <span class="at">n_similar =</span> <span class="fu">nrow</span>(rows),</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>      <span class="at">route_median_days =</span> <span class="fu">median</span>(rows<span class="sc">$</span>delivery_days)</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>scenario_def <span class="ot">&lt;-</span> <span class="fu">tribble</span>(</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span>label,                                   <span class="sc">~</span>seller, <span class="sc">~</span>cust, <span class="sc">~</span>month,</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Same state (SP to SP), off-peak (Aug)"</span>,  <span class="st">"SP"</span>,    <span class="st">"SP"</span>,  <span class="dv">8</span>,</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Same state (SP to SP), peak (Nov)"</span>,      <span class="st">"SP"</span>,    <span class="st">"SP"</span>,  <span class="dv">11</span>,</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Neighbouring state (SP to RJ), Aug"</span>,     <span class="st">"SP"</span>,    <span class="st">"RJ"</span>,  <span class="dv">8</span>,</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Northeast (SP to BA), off-peak (Aug)"</span>,   <span class="st">"SP"</span>,    <span class="st">"BA"</span>,  <span class="dv">8</span>,</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Northeast (SP to BA), peak (Nov)"</span>,       <span class="st">"SP"</span>,    <span class="st">"BA"</span>,  <span class="dv">11</span>,</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Remote north (SP to AM), off-peak (Aug)"</span>, <span class="st">"SP"</span>,   <span class="st">"AM"</span>,  <span class="dv">8</span></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>scn_df <span class="ot">&lt;-</span> <span class="fu">pmap</span>(scenario_def, build_scenario) <span class="sc">|&gt;</span> <span class="fu">list_rbind</span>()</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>scn_res <span class="ot">&lt;-</span> scn_df <span class="sc">|&gt;</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">lasso_pred =</span> <span class="fu">predict</span>(fit_lasso3, <span class="at">new_data =</span> scn_df)<span class="sc">$</span>.pred,</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">tree_pred  =</span> <span class="fu">predict</span>(fit_tree3,  <span class="at">new_data =</span> scn_df)<span class="sc">$</span>.pred,</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist_estimate =</span> estimated_days</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(label, n_similar, route_median_days, olist_estimate, lasso_pred, tree_pred)</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>scn_res <span class="sc">|&gt;</span></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">Scenario =</span> label,</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Similar training orders</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">format</span>(n_similar, <span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Route median, all months (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(route_median_days, <span class="dv">1</span>),</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Olist estimate (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(olist_estimate, <span class="dv">1</span>),</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Lasso prediction (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(lasso_pred, <span class="dv">1</span>),</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Tree prediction (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(tree_pred, <span class="dv">1</span>)</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Predicted delivery days for six typical order profiles"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Predicted delivery days for six typical order profiles</caption>
+<colgroup>
+<col style="width: 24%">
+<col style="width: 14%">
+<col style="width: 19%">
+<col style="width: 13%">
+<col style="width: 14%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Scenario</th>
+<th style="text-align: left;">Similar training orders</th>
+<th style="text-align: right;">Route median, all months (days)</th>
+<th style="text-align: right;">Olist estimate (days)</th>
+<th style="text-align: right;">Lasso prediction (days)</th>
+<th style="text-align: right;">Tree prediction (days)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Same state (SP to SP), off-peak (Aug)</td>
+<td style="text-align: left;">28,231</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">3.6</td>
+<td style="text-align: right;">6.4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Same state (SP to SP), peak (Nov)</td>
+<td style="text-align: left;">28,231</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">8.5</td>
+<td style="text-align: right;">10.4</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Neighbouring state (SP to RJ), Aug</td>
+<td style="text-align: left;">7,506</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">13.4</td>
+<td style="text-align: right;">11.7</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Northeast (SP to BA), off-peak (Aug)</td>
+<td style="text-align: left;">2,083</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">15.1</td>
+<td style="text-align: right;">11.8</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Northeast (SP to BA), peak (Nov)</td>
+<td style="text-align: left;">2,083</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">29</td>
+<td style="text-align: right;">20.0</td>
+<td style="text-align: right;">17.7</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Remote north (SP to AM), off-peak (Aug)</td>
+<td style="text-align: left;">87</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">43</td>
+<td style="text-align: right;">22.2</td>
+<td style="text-align: right;">16.1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>scn_res <span class="sc">|&gt;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">label =</span> <span class="fu">fct_reorder</span>(label, tree_pred)) <span class="sc">|&gt;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">y =</span> label)) <span class="sc">+</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="fu">aes</span>(<span class="at">x =</span> tree_pred), <span class="at">fill =</span> <span class="st">"#2b8cbe"</span>, <span class="at">width =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> olist_estimate), <span class="at">shape =</span> <span class="dv">18</span>, <span class="at">size =</span> <span class="dv">4</span>, <span class="at">color =</span> <span class="st">"#d95f02"</span>) <span class="sc">+</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Same seller, different routes: predicted delivery time"</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Bars: decision tree prediction. Diamonds: Olist's estimate for the same profile"</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Days"</span>, <span class="at">y =</span> <span class="cn">NULL</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="conclusion_files/figure-html/scenario-plot-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Model prediction (bars) vs.&nbsp;Olist’s checkout estimate (diamonds) for six order profiles</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>What the scenarios show</strong></p>
+<ul>
+<li><strong>Route changes the answer more than anything else.</strong> Predicted delivery runs from 6.4 days (Same state (SP to SP), off-peak (Aug)) to 17.7 days (Northeast (SP to BA), peak (Nov)) according to the tree.</li>
+<li><strong>The peak month adds days on the same route.</strong> Moving the same-state order from August to November changes the tree prediction by +4.1 days (lasso: +4.9), and moving the Bahia order by +5.8 days (lasso: +4.9). The size of the seasonal effect depends on the route, which only the tree can express fully.</li>
+<li><strong>The two models mostly agree.</strong> They differ by at most 6.1 days across the six profiles. Where they disagree most, treat the prediction as less certain.</li>
+<li><strong>Olist’s estimate also changes with route, but not in step with the model.</strong> The estimate minus the tree prediction ranges from 6.6 to 26.9 days across the six profiles, so the amount of padding is not the same for every route.</li>
+</ul>
+<p>These profiles use real typical values for each route, and the purchase year is set to the most common year on that route. They illustrate the model; they are not forecasts of any single order.</p>
+<hr>
+</section>
+<section id="late-deliveries-by-purchase-month" class="level2">
+<h2 class="anchored" data-anchor-id="late-deliveries-by-purchase-month">Late deliveries by purchase month</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>month_tbl <span class="ot">&lt;-</span> tp <span class="sc">|&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month_num =</span> <span class="fu">as.integer</span>(<span class="fu">as.character</span>(purchase_month))) <span class="sc">|&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(month_num) <span class="sc">|&gt;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">actual =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist =</span> <span class="fu">mean</span>(estimated_days),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">late =</span> <span class="fu">mean</span>(delivery_days <span class="sc">&gt;</span> estimated_days),</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">factor</span>(month.abb[month_num], <span class="at">levels =</span> month.abb))</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(month_tbl, <span class="fu">aes</span>(<span class="at">x =</span> month, <span class="at">y =</span> late)) <span class="sc">+</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">fill =</span> <span class="st">"#2b8cbe"</span>, <span class="at">width =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Share of orders arriving after Olist's estimate, by purchase month"</span>,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Test set, all years pooled"</span>,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Late vs. estimate"</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="conclusion_files/figure-html/monthly-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The late share is highest for orders placed in Mar, Nov, Feb (15.9%, 13.0%, 12.0%) and lowest in Jun (1.7%). Months pool different years in a dataset that covers 2016 to 2018, so some of this reflects specific events or demand peaks in a single year, not a calendar pattern. Some of these are months the exploration page flagged as slow (February, March, November, December).</p>
+<hr>
 </section>
 <section id="what-the-team-should-do" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-team-should-do">What the team should do</h2>
 <ol type="1">
-<li><p>Set checkout ETAs by origin/destination state and month, not one flat average. Geography and purchase month alone (LM on Recipe 2, 7.889 days RMSE, <span class="math inline">\(R^2 = 0.246\)</span>) capture almost all of the baseline gain over a simple numeric model (LM on Recipe 1, 8.872 days RMSE, <span class="math inline">\(R^2 = 0.046\)</span>).</p></li>
-<li><p>Use Ridge (Recipe 3) as the baseline ETA model. It edges out LM (Recipe 2), Lasso (Recipe 3) (7.891 days RMSE, 5.243 days MAE), and Decision Tree (Recipe 4) (7.937 days RMSE, 5.222 days MAE) on test RMSE and <span class="math inline">\(R^2\)</span> while keeping predictions smooth across correlated numeric features (<code>freight_value</code> and <code>product_weight_g</code>).</p></li>
-<li><p>Add an upper buffer window for long-haul and tail-risk orders. Because point predictions cluster around typical delivery windows (~5–25 days), extreme delays past 50–150+ days still produce large positive residuals (<code>Actual - Predicted &gt; 0</code>). Pairing the point estimate with a delivery window helps manage expectations on slower routes.</p></li>
-<li><p>Group low-volume states cleanly in baseline models. Using <code>step_other(threshold = 0.02)</code> prevents noisy estimates on small state samples in the training set while preserving signal from major and distinct regional patterns.</p></li>
+<li><p><strong>Make the delivery promise route-aware.</strong> Set the checkout estimate from seller state, customer state, and month, instead of one rule for everything. The tier table shows how unevenly the current estimate is padded (9.9 days on Same state, 16 days on Cross-state to North). A pilot of a route-aware promise on a few routes would show how many days could be saved without raising the late rate. <em>Measure it by:</em> average promised days and the late rate, by route tier.</p></li>
+<li><p><strong>Show a delivery window, not a single date.</strong> Point predictions are good on average but miss the slow tail, and the width of the uncertainty depends on the route (about 9 days on the tightest tier and 23 days on Cross-state to North, measured as the middle 80% of outcomes). Offering “between day X and day Y” is more honest and matches how the model behaves. <em>Measure it by:</em> the share of orders that land inside the window, which should be close to the 80% it is designed for.</p></li>
+<li><p><strong>Add a seasonal buffer for the slow months.</strong> Orders placed in Mar, Nov, Feb are late most often. Extend the promise or add carrier capacity in those months. Check whether the pattern holds in newer data before committing. <em>Measure it by:</em> the late rate in those months, year over year.</p></li>
+<li><p><strong>Treat the north and northeast as a separate service tier.</strong> Routes into these regions are the slowest and the hardest to predict (the highest-error tier is Cross-state to North, with an average miss of 8 days). Set separate expectations, review carrier performance on these lanes, and consider whether stocking inventory closer to these customers is worth testing. <em>Measure it by:</em> delivery time and prediction error on these lanes, tracked separately.</p></li>
+<li><p><strong>Test whether sourcing closer to the buyer helps.</strong> Same-state routes are the fastest and the single most-used feature in the tree. That is an association, not proof that moving a seller would change delivery time, because sellers and buyers in the same state may also differ in carrier mix and product type. A small pilot, such as a “ships from your state” badge or search ranking, would show whether the effect is real. <em>Measure it by:</em> conversion and delivery time on the pilot group against a control.</p></li>
+<li><p><strong>Do not spend effort on purchase weekday, time of day, or listing quality.</strong> Weekday and time of day barely moved delivery outcomes in the exploration, and listing-quality fields added nothing visible to the models. Put effort into route, carrier, and seller handling instead.</p></li>
+<li><p><strong>Look at seller handling time.</strong> The shipping deadline the seller was given (<code>ship_window_days</code>) is one of the more-used features in the tree. We cannot tell from this data whether sellers who are given more time actually take more time, so this is a question to investigate with seller-level shipping timestamps.</p></li>
+<li><p><strong>Keep the model honest over time.</strong> Retrain on recent orders at a regular interval, watch average error by route tier, and treat a sustained rise in error as a sign that carrier performance or demand has shifted.</p></li>
 </ol>
 <hr>
 </section>
 <section id="how-far-to-trust-it" class="level2">
 <h2 class="anchored" data-anchor-id="how-far-to-trust-it">How far to trust it</h2>
-<p>-Around 5.22 days MAE and **7.86 days RMSE on unseen test orders—useful for checkout ETA windows and capacity planning, but not exact to the single day on every shipment.</p>
-<p>-Tail delays are still the hardest part: Residuals are skewed upward on extreme outliers where deliveries stretch far beyond typical transit times, so point estimates will under-predict severe exceptions.</p>
-<p>-Random split tests “similar orders,” not future shifts: The 80/20 split (<code>88,156</code> train / <code>22,040</code> test) measures generalization across orders from the historical dataset, not performance under future carrier changes or seasonal shifts.</p>
-<p>-Order-item grain carries through: Because <code>delivery_days</code> is an order-level delivery duration repeated across items in multi-item orders (<code>110,196</code> rows), multi-item orders have slightly more weight in the metrics</p>
+<ul>
+<li><strong>Accuracy is useful, not exact.</strong> A typical miss is about 4.8 days, and the average error is much smaller than the error on the worst orders (RMSE 7.6 days). This is good for checkout windows and capacity planning, not for day-exact commitments.</li>
+<li><strong>The slow tail is still hard.</strong> The model under-predicts the slowest orders, because it predicts a typical value for a right-skewed target. That is why we recommend a window with a buffer.</li>
+<li><strong>A random split tests similar orders, not future ones.</strong> The test orders come from the same 2016 to 2018 period as the training orders. The model has not been tested on a new carrier contract, a strike, or a different year.</li>
+<li><strong>Single test set.</strong> Differences of a few hundredths of a day between models are not meaningful.</li>
+<li><strong>Order-item grain.</strong> <code>delivery_days</code> is an order-level duration repeated across the items of an order, so multi-item orders carry slightly more weight in the metrics.</li>
+<li><strong>Associations, not causes.</strong> The importance scores and coefficients show what the models rely on to predict. They do not show what causes a delay, which is why recommendations 5 and 7 are framed as tests.</li>
+<li><strong>Coarse geography.</strong> Zip-code region is only a rough stand-in for distance, and the scenarios use median values for each route.</li>
+</ul>
+</section>
+<section id="what-would-improve-it-next" class="level2">
+<h2 class="anchored" data-anchor-id="what-would-improve-it-next">What would improve it next</h2>
+<ul>
+<li><strong>Real seller-to-customer distance</strong> from Olist’s geolocation table, which is the most promising feature not yet used.</li>
+<li><strong>Stage-level timestamps</strong> (approval, handoff to carrier, delivery), so seller handling time and carrier transit time can be modelled separately and each team can see its own share.</li>
+<li><strong>A time-based test</strong>: train on earlier months and test on later ones, which is a stricter check than a random split.</li>
+<li><strong>Non-linear ensemble models and a log-transformed target.</strong> Earlier experiments suggested these can lower typical error, at the cost of being harder to explain.</li>
+</ul>
 
 
 <!-- -->
@@ -824,114 +1089,362 @@ window.Quarto = {
     }
   });
   </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Conclusion"</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "What drives Olist delivery times, and what logistics and operations teams should do with that"</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="fu">## The answer in one paragraph</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>Delivery time on Olist is driven primarily by origin and destination geography (<span class="in">`customer_state`</span> and <span class="in">`seller_state`</span>) and purchase timing (<span class="in">`purchase_month`</span>), with item weight and freight cost playing a smaller supporting role. Across 110,196 order-item rows, raw <span class="in">`delivery_days`</span> averages 12.01 days (median 10 days, SD 9.45 days, max 209 days), with remote northern and northeastern states like AP, RR, and AM averaging roughly 25.7 to 30.0 days. Our top baseline workflow— Ridge on Recipe 3—predicts unseen test orders (<span class="in">`22,040`</span> rows) to within 5.224 days MAE and 7.862 days RMSE ($R^2 = 0.251$), cutting RMSE by 1.223 days (~13.5%) and MAE by 1.062 days (~16.9%) compared to predicting the training-set average every time (9.085 days RMSE, 6.286 days MAE).</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">## Four order scenarios, predicted</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>The clearest way to show what the model does is to score concrete checkout scenarios with <span class="in">`predict()`</span> on our fitted **Ridge (Recipe 3)** workflow and compare each prediction against a single training-mean rule (<span class="in">`12.01`</span> days).</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scenario-predictions</span></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidymodels)</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co"># load saved objects if written from modeling.qmd</span></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>delivery_train <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/delivery_train.rds"</span>)</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>wf_ridge_r3 <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/wf_ridge_r3.rds"</span>)</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>new_orders <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  <span class="at">scenario =</span> <span class="fu">c</span>(</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Local / nearby state, light item, off-peak month"</span>,</span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mid-distance route, moderate freight &amp; weight"</span>,</span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Long-haul route, heavy item &amp; higher freight"</span>,</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Peak-season order with higher freight &amp; weight"</span></span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>  <span class="at">freight_value =</span> <span class="fu">c</span>(<span class="dv">12</span>, <span class="dv">22</span>, <span class="dv">45</span>, <span class="dv">38</span>),</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  <span class="at">product_weight_g =</span> <span class="fu">c</span>(<span class="dv">400</span>, <span class="dv">1800</span>, <span class="dv">8500</span>, <span class="dv">5000</span>),</span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  <span class="at">customer_state =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">"SP"</span>, <span class="st">"RJ"</span>, <span class="st">"AM"</span>, <span class="st">"BA"</span>), <span class="at">levels =</span> <span class="fu">levels</span>(delivery_train<span class="sc">$</span>customer_state)),</span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  <span class="at">seller_state =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">"SP"</span>, <span class="st">"SP"</span>, <span class="st">"SP"</span>, <span class="st">"SP"</span>), <span class="at">levels =</span> <span class="fu">levels</span>(delivery_train<span class="sc">$</span>seller_state)),</span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>  <span class="at">purchase_month =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">"4"</span>, <span class="st">"8"</span>, <span class="st">"11"</span>, <span class="st">"11"</span>), <span class="at">levels =</span> <span class="fu">levels</span>(delivery_train<span class="sc">$</span>purchase_month))</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>naive_rule_days <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">mean</span>(delivery_train<span class="sc">$</span>delivery_days), <span class="dv">1</span>)</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>scored_orders <span class="ot">&lt;-</span> <span class="fu">predict</span>(wf_ridge_r3, <span class="at">new_data =</span> new_orders) <span class="sc">|&gt;</span></span>
-<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(new_orders) <span class="sc">|&gt;</span></span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">predicted_days =</span> <span class="fu">round</span>(.pred, <span class="dv">1</span>),</span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    <span class="at">naive_rule =</span> naive_rule_days,</span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>    <span class="at">naive_diff =</span> <span class="fu">round</span>(naive_rule <span class="sc">-</span> predicted_days, <span class="dv">1</span>)</span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scenario, predicted_days, naive_rule, naive_diff)</span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(</span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>  scored_orders,</span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>  <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Order Scenario"</span>, <span class="st">"Predicted Days"</span>, <span class="st">"Naive Rule (Days)"</span>, <span class="st">"Naive - Predicted"</span>),</span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Sample checkout scenarios scored with Ridge (Recipe 3) vs. training-mean baseline"</span></span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scenario-chart</span></span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(scored_orders, <span class="fu">aes</span>(<span class="at">x =</span> predicted_days, <span class="at">y =</span> <span class="fu">reorder</span>(scenario, predicted_days))) <span class="sc">+</span></span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">fill =</span> <span class="st">"#2b8cbe"</span>, <span class="at">width =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Same Store Network, Different Checkout Profiles"</span>,</span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Predicted delivery_days from Ridge (Recipe 3)"</span>,</span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Predicted Delivery Days"</span>,</span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="cn">NULL</span></span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
-<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a> -Clear ranking across checkout profiles: The bar chart and scenario table show Ridge (Recipe 3) ordering the four scenarios cleanly from shortest to longest predicted transit time: 7.9 days for a local, light, off-peak order; 11.7 days for a mid-distance order with moderate freight and weight; 19.4 days for a peak-season order with higher freight and weight; and 22.9 days for a long-haul order with a heavy item and higher freight.</span>
-<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>  -Nearly a 3x gap between short and long-haul profiles: Even within the same network, the long-haul heavy/high-freight profile (22.9 days) is predicted to take almost three times as long as the local, light, off-peak profile (7.9 days).</span>
-<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a> -A single 12-day average misleads in both directions: Compared to the flat 12-day naive rule, the average slightly over-estimates the local order by 4.1 days (+4.1), aligns closely with the mid-distance order (0.3 days difference), and under-estimates both the peak-season higher-freight/weight order by 7.4 days (-7.4) and the long-haul heavy/high-freight order by 10.9 days (-10.9).</span>
-<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>  -Operational takeaway: Using route-, month-, and item-aware predictions avoids over-promising fast delivery on long-haul or peak orders while giving more realistic expectations on local shipments.</span>
-<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a><span class="fu">## What the team should do</span></span>
-<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Set checkout ETAs by origin/destination state and month, not one flat average. Geography and purchase month alone (LM on Recipe 2, 7.889 days RMSE, $R^2 = 0.246$) capture almost all of the baseline gain over a simple numeric model (LM on Recipe 1, 8.872 days RMSE, $R^2 = 0.046$).</span>
-<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Use Ridge (Recipe 3) as the baseline ETA model. It edges out LM (Recipe 2), Lasso (Recipe 3) (7.891 days RMSE, 5.243 days MAE), and  Decision Tree (Recipe 4) (7.937 days RMSE, 5.222 days MAE) on test RMSE and $R^2$ while keeping predictions smooth across correlated numeric features (<span class="in">`freight_value`</span> and <span class="in">`product_weight_g`</span>).</span>
-<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Add an upper buffer window for long-haul and tail-risk orders. Because point predictions cluster around typical delivery windows (~5–25 days), extreme delays past 50–150+ days still produce large positive residuals (<span class="in">`Actual - Predicted &gt; 0`</span>). Pairing the point estimate with a delivery window helps manage expectations on slower routes.</span>
-<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Group low-volume states cleanly in baseline models. Using <span class="in">`step_other(threshold = 0.02)`</span> prevents noisy estimates on small state samples in the training set while preserving signal from major and distinct regional patterns.</span>
-<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a><span class="fu">## How far to trust it</span></span>
-<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a> -Around 5.22 days MAE and **7.86 days RMSE on unseen test orders—useful for checkout ETA windows and capacity planning, but not exact to the single day on every shipment.</span>
-<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a> -Tail delays are still the hardest part: Residuals are skewed upward on extreme outliers where deliveries stretch far beyond typical transit times, so point estimates will under-predict severe exceptions.</span>
-<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a> -Random split tests "similar orders," not future shifts: The 80/20 split (<span class="in">`88,156`</span> train / <span class="in">`22,040`</span> test) measures generalization across orders from the historical dataset, not performance under future carrier changes or seasonal shifts.</span>
-<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb3-112"><a href="#cb3-112" aria-hidden="true" tabindex="-1"></a> -Order-item grain carries through: Because <span class="in">`delivery_days`</span> is an order-level delivery duration repeated across items in multi-item orders (<span class="in">`110,196`</span> rows), multi-item orders have slightly more weight in the metrics</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Conclusion"</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "What drives Olist delivery times, and what logistics and operations teams should do about it"</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">  message: false</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidymodels)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glmnet)</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rpart)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">tidymodels_prefer</span>()</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>needed <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"data/delivery_train_v2.rds"</span>, <span class="st">"data/final_lasso_r3.rds"</span>,</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>            <span class="st">"data/final_tree_r3.rds"</span>, <span class="st">"data/model_results.rds"</span>,</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>            <span class="st">"data/test_preds_tree_r3.rds"</span>)</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>missing_files <span class="ot">&lt;-</span> needed[<span class="sc">!</span><span class="fu">file.exists</span>(needed)]</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">length</span>(missing_files) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stop</span>(<span class="st">"Missing model output files: "</span>, <span class="fu">paste</span>(missing_files, <span class="at">collapse =</span> <span class="st">", "</span>))</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>train      <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/delivery_train_v2.rds"</span>)</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>fit_lasso3 <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/final_lasso_r3.rds"</span>)</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>fit_tree3  <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/final_tree_r3.rds"</span>)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>results    <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/model_results.rds"</span>)</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>test_preds <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">"data/test_preds_tree_r3.rds"</span>)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>get_metric <span class="ot">&lt;-</span> <span class="cf">function</span>(rec, mod, met) {</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>  results[results<span class="sc">$</span>recipe <span class="sc">==</span> rec <span class="sc">&amp;</span> results<span class="sc">$</span>model <span class="sc">==</span> mod, ][[met]]</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>best_row <span class="ot">&lt;-</span> results <span class="sc">|&gt;</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(recipe <span class="sc">!=</span> <span class="st">"Benchmark"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice_min</span>(mae, <span class="at">n =</span> <span class="dv">1</span>, <span class="at">with_ties =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>naive_mae  <span class="ot">&lt;-</span> <span class="fu">get_metric</span>(<span class="st">"Benchmark"</span>, <span class="st">"Naive (train mean)"</span>, <span class="st">"mae"</span>)</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>naive_rmse <span class="ot">&lt;-</span> <span class="fu">get_metric</span>(<span class="st">"Benchmark"</span>, <span class="st">"Naive (train mean)"</span>, <span class="st">"rmse"</span>)</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>olist_mae  <span class="ot">&lt;-</span> <span class="fu">get_metric</span>(<span class="st">"Benchmark"</span>, <span class="st">"Olist estimate only (LM)"</span>, <span class="st">"mae"</span>)</span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>olist_r2   <span class="ot">&lt;-</span> <span class="fu">get_metric</span>(<span class="st">"Benchmark"</span>, <span class="st">"Olist estimate only (LM)"</span>, <span class="st">"rsq_trad"</span>)</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>draft_mae  <span class="ot">&lt;-</span> <span class="fu">get_metric</span>(<span class="st">"Benchmark"</span>, <span class="st">"First-draft ridge (original features)"</span>, <span class="st">"mae"</span>)</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>draft_r2   <span class="ot">&lt;-</span> <span class="fu">get_metric</span>(<span class="st">"Benchmark"</span>, <span class="st">"First-draft ridge (original features)"</span>, <span class="st">"rsq_trad"</span>)</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a><span class="co"># Olist's promise is the estimated delivery date shown at checkout. An order is late if it</span></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a><span class="co"># arrives after that date. Padding is how many days longer the promise was than the actual delivery</span></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>mean_actual <span class="ot">&lt;-</span> <span class="fu">mean</span>(test_preds<span class="sc">$</span>delivery_days)</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>olist_late  <span class="ot">&lt;-</span> <span class="fu">mean</span>(test_preds<span class="sc">$</span>delivery_days <span class="sc">&gt;</span> test_preds<span class="sc">$</span>estimated_days)</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>olist_early <span class="ot">&lt;-</span> <span class="fu">mean</span>(test_preds<span class="sc">$</span>delivery_days <span class="sc">&lt;</span> test_preds<span class="sc">$</span>estimated_days)</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>mean_olist_padding <span class="ot">&lt;-</span> <span class="fu">mean</span>(test_preds<span class="sc">$</span>estimated_days <span class="sc">-</span> test_preds<span class="sc">$</span>delivery_days)</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a><span class="fu">## The answer in one paragraph</span></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>Delivery time on Olist is driven mainly by **route**: where the seller is, where the customer is, and whether the two are in the same state. Product and order characteristics add a smaller amount, and purchase timing adds very little beyond a few slow months. The best model (`r best_row$model` on `r best_row$recipe`) predicts delivery time on unseen orders to within about **`r round(best_row$mae, 1)` days** on average and explains about **`r round(100 * best_row$rsq_trad)`%** of the variation, using only information available at checkout. That is <span class="in">`r round(100 * (1 - best_row$mae / naive_mae))`</span>% lower error than always predicting the average (<span class="in">`r round(naive_mae, 1)`</span> days), and <span class="in">`r round(100 * (1 - best_row$mae / draft_mae))`</span>% lower than the first-draft model (<span class="in">`r round(draft_mae, 1)`</span> days), which used fewer features and was scored on a split that did not keep orders together. Olist's own checkout estimate is much looser: on its own it explains only <span class="in">`r round(100 * olist_r2)`</span>% of the variation, and on the test orders it is on average <span class="in">`r round(mean_olist_padding, 1)`</span> days longer than what actually happened. What follows turns those findings into concrete order scenarios and recommendations.</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a><span class="fu">## How delivery time varies by route</span></span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a>We group test orders into route tiers: orders where seller and customer are in the same state, and cross-state orders by the customer's macro-region. The table compares what customers were promised, what actually happened, and how well the model did.</span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: route-tiers</span></span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a><span class="co"># Brazil's five macro-regions, used to group destination states into service tiers</span></span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a>macro_region <span class="ot">&lt;-</span> <span class="cf">function</span>(state) {</span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>  <span class="fu">case_when</span>(</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"AC"</span>, <span class="st">"AM"</span>, <span class="st">"AP"</span>, <span class="st">"PA"</span>, <span class="st">"RO"</span>, <span class="st">"RR"</span>, <span class="st">"TO"</span>) <span class="sc">~</span> <span class="st">"North"</span>,</span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"AL"</span>, <span class="st">"BA"</span>, <span class="st">"CE"</span>, <span class="st">"MA"</span>, <span class="st">"PB"</span>, <span class="st">"PE"</span>, <span class="st">"PI"</span>, <span class="st">"RN"</span>, <span class="st">"SE"</span>) <span class="sc">~</span> <span class="st">"Northeast"</span>,</span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"DF"</span>, <span class="st">"GO"</span>, <span class="st">"MS"</span>, <span class="st">"MT"</span>) <span class="sc">~</span> <span class="st">"Center-West"</span>,</span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"ES"</span>, <span class="st">"MG"</span>, <span class="st">"RJ"</span>, <span class="st">"SP"</span>) <span class="sc">~</span> <span class="st">"Southeast"</span>,</span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a>    state <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"PR"</span>, <span class="st">"RS"</span>, <span class="st">"SC"</span>) <span class="sc">~</span> <span class="st">"South"</span>,</span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">"Other"</span></span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a>tier_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Same state"</span>, <span class="st">"Cross-state to Southeast"</span>, <span class="st">"Cross-state to South"</span>,</span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>                 <span class="st">"Cross-state to Center-West"</span>, <span class="st">"Cross-state to Northeast"</span>,</span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>                 <span class="st">"Cross-state to North"</span>)</span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a>tp <span class="ot">&lt;-</span> test_preds <span class="sc">|&gt;</span></span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>    <span class="at">route_tier =</span> <span class="fu">if_else</span>(</span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a>      same_state <span class="sc">==</span> <span class="st">"same"</span>, <span class="st">"Same state"</span>,</span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a>      <span class="fu">paste0</span>(<span class="st">"Cross-state to "</span>, <span class="fu">macro_region</span>(<span class="fu">as.character</span>(customer_state)))</span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>    <span class="at">route_tier =</span> <span class="fu">factor</span>(route_tier, <span class="at">levels =</span> tier_levels)</span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a><span class="co"># For each tier: promise vs. actual, plus the 10th and 90th percentile of the residual</span></span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a><span class="co"># (actual minus predicted), which bound the middle 80% of outcomes around a prediction</span></span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a>tier_tbl <span class="ot">&lt;-</span> tp <span class="sc">|&gt;</span></span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(route_tier) <span class="sc">|&gt;</span></span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(),</span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a>    <span class="at">actual =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist =</span> <span class="fu">mean</span>(estimated_days),</span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a>    <span class="at">padding =</span> <span class="fu">mean</span>(estimated_days <span class="sc">-</span> delivery_days),</span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist_late =</span> <span class="fu">mean</span>(delivery_days <span class="sc">&gt;</span> estimated_days),</span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a>    <span class="at">mae =</span> <span class="fu">mean</span>(<span class="fu">abs</span>(residual)),</span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a>    <span class="at">q10 =</span> <span class="fu">quantile</span>(residual, <span class="fl">0.1</span>, <span class="at">names =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a>    <span class="at">q90 =</span> <span class="fu">quantile</span>(residual, <span class="fl">0.9</span>, <span class="at">names =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>tier_tbl <span class="sc">|&gt;</span></span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Route tier</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.character</span>(route_tier),</span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Test rows</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">format</span>(n, <span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Avg actual days</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(actual, <span class="dv">1</span>),</span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Avg Olist estimate</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(olist, <span class="dv">1</span>),</span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Avg padding (estimate - actual)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(padding, <span class="dv">1</span>),</span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Late vs. Olist estimate</span><span class="st">`</span> <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(olist_late, <span class="at">accuracy =</span> <span class="fl">0.1</span>),</span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Model MAE (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(mae, <span class="dv">1</span>),</span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">80% window around prediction (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sprintf</span>(<span class="st">"%+.0f to %+.0f"</span>, q10, q90)</span>
+<span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Delivery performance by route tier (test set, decision tree on Recipe 3)"</span>)</span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tier-plot</span></span>
+<span id="cb6-131"><a href="#cb6-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Average actual delivery time vs. Olist's estimate, by route tier (test set)"</span></span>
+<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4.5</span></span>
+<span id="cb6-133"><a href="#cb6-133" aria-hidden="true" tabindex="-1"></a>tier_tbl <span class="sc">|&gt;</span></span>
+<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(route_tier, <span class="at">Actual =</span> actual, <span class="st">`</span><span class="at">Olist estimate</span><span class="st">`</span> <span class="ot">=</span> olist) <span class="sc">|&gt;</span></span>
+<span id="cb6-135"><a href="#cb6-135" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>route_tier, <span class="at">names_to =</span> <span class="st">"measure"</span>, <span class="at">values_to =</span> <span class="st">"days"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> days, <span class="at">y =</span> <span class="fu">fct_rev</span>(route_tier), <span class="at">fill =</span> measure)) <span class="sc">+</span></span>
+<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.75</span>), <span class="at">width =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb6-138"><a href="#cb6-138" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Actual"</span> <span class="ot">=</span> <span class="st">"#2b8cbe"</span>, <span class="st">"Olist estimate"</span> <span class="ot">=</span> <span class="st">"#d95f02"</span>)) <span class="sc">+</span></span>
+<span id="cb6-139"><a href="#cb6-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb6-140"><a href="#cb6-140" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Olist's estimate is padded on every route, and the padding differs by route"</span>,</span>
+<span id="cb6-141"><a href="#cb6-141" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Average days"</span>, <span class="at">y =</span> <span class="cn">NULL</span>, <span class="at">fill =</span> <span class="cn">NULL</span></span>
+<span id="cb6-142"><a href="#cb6-142" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb6-143"><a href="#cb6-143" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb6-144"><a href="#cb6-144" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span>
+<span id="cb6-145"><a href="#cb6-145" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-146"><a href="#cb6-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-149"><a href="#cb6-149" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-150"><a href="#cb6-150" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tier-values</span></span>
+<span id="cb6-151"><a href="#cb6-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb6-152"><a href="#cb6-152" aria-hidden="true" tabindex="-1"></a>fast_tier  <span class="ot">&lt;-</span> tier_tbl<span class="sc">$</span>route_tier[<span class="fu">which.min</span>(tier_tbl<span class="sc">$</span>actual)]</span>
+<span id="cb6-153"><a href="#cb6-153" aria-hidden="true" tabindex="-1"></a>slow_tier  <span class="ot">&lt;-</span> tier_tbl<span class="sc">$</span>route_tier[<span class="fu">which.max</span>(tier_tbl<span class="sc">$</span>actual)]</span>
+<span id="cb6-154"><a href="#cb6-154" aria-hidden="true" tabindex="-1"></a>fast_days  <span class="ot">&lt;-</span> <span class="fu">min</span>(tier_tbl<span class="sc">$</span>actual)</span>
+<span id="cb6-155"><a href="#cb6-155" aria-hidden="true" tabindex="-1"></a>slow_days  <span class="ot">&lt;-</span> <span class="fu">max</span>(tier_tbl<span class="sc">$</span>actual)</span>
+<span id="cb6-156"><a href="#cb6-156" aria-hidden="true" tabindex="-1"></a>pad_hi_tier <span class="ot">&lt;-</span> tier_tbl<span class="sc">$</span>route_tier[<span class="fu">which.max</span>(tier_tbl<span class="sc">$</span>padding)]</span>
+<span id="cb6-157"><a href="#cb6-157" aria-hidden="true" tabindex="-1"></a>pad_lo_tier <span class="ot">&lt;-</span> tier_tbl<span class="sc">$</span>route_tier[<span class="fu">which.min</span>(tier_tbl<span class="sc">$</span>padding)]</span>
+<span id="cb6-158"><a href="#cb6-158" aria-hidden="true" tabindex="-1"></a>pad_hi <span class="ot">&lt;-</span> <span class="fu">max</span>(tier_tbl<span class="sc">$</span>padding)</span>
+<span id="cb6-159"><a href="#cb6-159" aria-hidden="true" tabindex="-1"></a>pad_lo <span class="ot">&lt;-</span> <span class="fu">min</span>(tier_tbl<span class="sc">$</span>padding)</span>
+<span id="cb6-160"><a href="#cb6-160" aria-hidden="true" tabindex="-1"></a>wide_tier <span class="ot">&lt;-</span> tier_tbl<span class="sc">$</span>route_tier[<span class="fu">which.max</span>(tier_tbl<span class="sc">$</span>q90 <span class="sc">-</span> tier_tbl<span class="sc">$</span>q10)]</span>
+<span id="cb6-161"><a href="#cb6-161" aria-hidden="true" tabindex="-1"></a>wide_width <span class="ot">&lt;-</span> <span class="fu">max</span>(tier_tbl<span class="sc">$</span>q90 <span class="sc">-</span> tier_tbl<span class="sc">$</span>q10)</span>
+<span id="cb6-162"><a href="#cb6-162" aria-hidden="true" tabindex="-1"></a>narrow_width <span class="ot">&lt;-</span> <span class="fu">min</span>(tier_tbl<span class="sc">$</span>q90 <span class="sc">-</span> tier_tbl<span class="sc">$</span>q10)</span>
+<span id="cb6-163"><a href="#cb6-163" aria-hidden="true" tabindex="-1"></a>mae_hi_tier <span class="ot">&lt;-</span> tier_tbl<span class="sc">$</span>route_tier[<span class="fu">which.max</span>(tier_tbl<span class="sc">$</span>mae)]</span>
+<span id="cb6-164"><a href="#cb6-164" aria-hidden="true" tabindex="-1"></a>mae_hi <span class="ot">&lt;-</span> <span class="fu">max</span>(tier_tbl<span class="sc">$</span>mae)</span>
+<span id="cb6-165"><a href="#cb6-165" aria-hidden="true" tabindex="-1"></a>mae_lo <span class="ot">&lt;-</span> <span class="fu">min</span>(tier_tbl<span class="sc">$</span>mae)</span>
+<span id="cb6-166"><a href="#cb6-166" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-167"><a href="#cb6-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-168"><a href="#cb6-168" aria-hidden="true" tabindex="-1"></a>**What this shows**</span>
+<span id="cb6-169"><a href="#cb6-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-170"><a href="#cb6-170" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Route is the biggest divide.** Average delivery time ranges from <span class="in">`r round(fast_days, 1)`</span> days (<span class="in">`r fast_tier`</span>) to <span class="in">`r round(slow_days, 1)`</span> days (<span class="in">`r slow_tier`</span>), a gap of about <span class="in">`r round(slow_days / fast_days, 1)`</span> times.</span>
+<span id="cb6-171"><a href="#cb6-171" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The padding is uneven.** Olist's estimate is longer than actual delivery by <span class="in">`r round(pad_lo, 1)`</span> days on the tier with the least padding (<span class="in">`r pad_lo_tier`</span>) and <span class="in">`r round(pad_hi, 1)`</span> days on the tier with the most (<span class="in">`r pad_hi_tier`</span>). Overall, <span class="in">`r scales::percent(olist_early, accuracy = 1)`</span> of test orders arrive before the estimated date and <span class="in">`r scales::percent(olist_late, accuracy = 0.1)`</span> arrive after it.</span>
+<span id="cb6-172"><a href="#cb6-172" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The model is least certain where routes are long.** Its average error is <span class="in">`r round(mae_lo, 1)`</span> days on the most predictable tier and <span class="in">`r round(mae_hi, 1)`</span> days on <span class="in">`r mae_hi_tier`</span>. The 80% window (the range that contains the middle 80% of outcomes around the prediction) is about <span class="in">`r round(narrow_width)`</span> days wide on the narrowest tier and <span class="in">`r round(wide_width)`</span> days wide on <span class="in">`r wide_tier`</span>.</span>
+<span id="cb6-173"><a href="#cb6-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-174"><a href="#cb6-174" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-175"><a href="#cb6-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-176"><a href="#cb6-176" aria-hidden="true" tabindex="-1"></a><span class="fu">## Six order scenarios, predicted</span></span>
+<span id="cb6-177"><a href="#cb6-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-178"><a href="#cb6-178" aria-hidden="true" tabindex="-1"></a>To make the model concrete, we score six "typical order" profiles. For each one we take real training orders on that route (seller state to customer state), use their median freight, weight, price, size, and Olist estimate, and set the purchase month. August is a fast month in the exploration, and November is a slow one. Both the lasso (the interpretable linear model) and the decision tree (the most accurate model) score each profile.</span>
+<span id="cb6-179"><a href="#cb6-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-182"><a href="#cb6-182" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-183"><a href="#cb6-183" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scenarios</span></span>
+<span id="cb6-184"><a href="#cb6-184" aria-hidden="true" tabindex="-1"></a><span class="co"># Most common category among a route's orders</span></span>
+<span id="cb6-185"><a href="#cb6-185" aria-hidden="true" tabindex="-1"></a>mode_level <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb6-186"><a href="#cb6-186" aria-hidden="true" tabindex="-1"></a>  tab <span class="ot">&lt;-</span> <span class="fu">table</span>(<span class="fu">as.character</span>(x))</span>
+<span id="cb6-187"><a href="#cb6-187" aria-hidden="true" tabindex="-1"></a>  x[<span class="fu">which</span>(<span class="fu">as.character</span>(x) <span class="sc">==</span> <span class="fu">names</span>(<span class="fu">which.max</span>(tab)))[<span class="dv">1</span>]]</span>
+<span id="cb6-188"><a href="#cb6-188" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-189"><a href="#cb6-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-190"><a href="#cb6-190" aria-hidden="true" tabindex="-1"></a><span class="co"># A "typical order" on a route: median values for numeric fields and the most common</span></span>
+<span id="cb6-191"><a href="#cb6-191" aria-hidden="true" tabindex="-1"></a><span class="co"># category for the rest, taken from real training orders, with the purchase month set explicitly</span></span>
+<span id="cb6-192"><a href="#cb6-192" aria-hidden="true" tabindex="-1"></a>build_scenario <span class="ot">&lt;-</span> <span class="cf">function</span>(label, seller, cust, month) {</span>
+<span id="cb6-193"><a href="#cb6-193" aria-hidden="true" tabindex="-1"></a>  rows <span class="ot">&lt;-</span> train <span class="sc">|&gt;</span> <span class="fu">filter</span>(seller_state <span class="sc">==</span> seller, customer_state <span class="sc">==</span> cust)</span>
+<span id="cb6-194"><a href="#cb6-194" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">nrow</span>(rows) <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb6-195"><a href="#cb6-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-196"><a href="#cb6-196" aria-hidden="true" tabindex="-1"></a>  rows <span class="sc">|&gt;</span></span>
+<span id="cb6-197"><a href="#cb6-197" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
+<span id="cb6-198"><a href="#cb6-198" aria-hidden="true" tabindex="-1"></a>      <span class="fu">across</span>(<span class="fu">where</span>(is.numeric), \(x) <span class="fu">median</span>(x, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb6-199"><a href="#cb6-199" aria-hidden="true" tabindex="-1"></a>      <span class="fu">across</span>(<span class="fu">where</span>(is.factor), mode_level)</span>
+<span id="cb6-200"><a href="#cb6-200" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb6-201"><a href="#cb6-201" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>delivery_days) <span class="sc">|&gt;</span></span>
+<span id="cb6-202"><a href="#cb6-202" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb6-203"><a href="#cb6-203" aria-hidden="true" tabindex="-1"></a>      <span class="at">order_id =</span> <span class="st">"scenario"</span>,</span>
+<span id="cb6-204"><a href="#cb6-204" aria-hidden="true" tabindex="-1"></a>      <span class="at">purchase_month =</span> <span class="fu">factor</span>(<span class="fu">as.character</span>(month), <span class="at">levels =</span> <span class="fu">levels</span>(train<span class="sc">$</span>purchase_month)),</span>
+<span id="cb6-205"><a href="#cb6-205" aria-hidden="true" tabindex="-1"></a>      <span class="at">label =</span> label,</span>
+<span id="cb6-206"><a href="#cb6-206" aria-hidden="true" tabindex="-1"></a>      <span class="at">n_similar =</span> <span class="fu">nrow</span>(rows),</span>
+<span id="cb6-207"><a href="#cb6-207" aria-hidden="true" tabindex="-1"></a>      <span class="at">route_median_days =</span> <span class="fu">median</span>(rows<span class="sc">$</span>delivery_days)</span>
+<span id="cb6-208"><a href="#cb6-208" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-209"><a href="#cb6-209" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-210"><a href="#cb6-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-211"><a href="#cb6-211" aria-hidden="true" tabindex="-1"></a>scenario_def <span class="ot">&lt;-</span> <span class="fu">tribble</span>(</span>
+<span id="cb6-212"><a href="#cb6-212" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span>label,                                   <span class="sc">~</span>seller, <span class="sc">~</span>cust, <span class="sc">~</span>month,</span>
+<span id="cb6-213"><a href="#cb6-213" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Same state (SP to SP), off-peak (Aug)"</span>,  <span class="st">"SP"</span>,    <span class="st">"SP"</span>,  <span class="dv">8</span>,</span>
+<span id="cb6-214"><a href="#cb6-214" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Same state (SP to SP), peak (Nov)"</span>,      <span class="st">"SP"</span>,    <span class="st">"SP"</span>,  <span class="dv">11</span>,</span>
+<span id="cb6-215"><a href="#cb6-215" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Neighbouring state (SP to RJ), Aug"</span>,     <span class="st">"SP"</span>,    <span class="st">"RJ"</span>,  <span class="dv">8</span>,</span>
+<span id="cb6-216"><a href="#cb6-216" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Northeast (SP to BA), off-peak (Aug)"</span>,   <span class="st">"SP"</span>,    <span class="st">"BA"</span>,  <span class="dv">8</span>,</span>
+<span id="cb6-217"><a href="#cb6-217" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Northeast (SP to BA), peak (Nov)"</span>,       <span class="st">"SP"</span>,    <span class="st">"BA"</span>,  <span class="dv">11</span>,</span>
+<span id="cb6-218"><a href="#cb6-218" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Remote north (SP to AM), off-peak (Aug)"</span>, <span class="st">"SP"</span>,   <span class="st">"AM"</span>,  <span class="dv">8</span></span>
+<span id="cb6-219"><a href="#cb6-219" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-220"><a href="#cb6-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-221"><a href="#cb6-221" aria-hidden="true" tabindex="-1"></a>scn_df <span class="ot">&lt;-</span> <span class="fu">pmap</span>(scenario_def, build_scenario) <span class="sc">|&gt;</span> <span class="fu">list_rbind</span>()</span>
+<span id="cb6-222"><a href="#cb6-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-223"><a href="#cb6-223" aria-hidden="true" tabindex="-1"></a>scn_res <span class="ot">&lt;-</span> scn_df <span class="sc">|&gt;</span></span>
+<span id="cb6-224"><a href="#cb6-224" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb6-225"><a href="#cb6-225" aria-hidden="true" tabindex="-1"></a>    <span class="at">lasso_pred =</span> <span class="fu">predict</span>(fit_lasso3, <span class="at">new_data =</span> scn_df)<span class="sc">$</span>.pred,</span>
+<span id="cb6-226"><a href="#cb6-226" aria-hidden="true" tabindex="-1"></a>    <span class="at">tree_pred  =</span> <span class="fu">predict</span>(fit_tree3,  <span class="at">new_data =</span> scn_df)<span class="sc">$</span>.pred,</span>
+<span id="cb6-227"><a href="#cb6-227" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist_estimate =</span> estimated_days</span>
+<span id="cb6-228"><a href="#cb6-228" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb6-229"><a href="#cb6-229" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(label, n_similar, route_median_days, olist_estimate, lasso_pred, tree_pred)</span>
+<span id="cb6-230"><a href="#cb6-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-231"><a href="#cb6-231" aria-hidden="true" tabindex="-1"></a>scn_res <span class="sc">|&gt;</span></span>
+<span id="cb6-232"><a href="#cb6-232" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb6-233"><a href="#cb6-233" aria-hidden="true" tabindex="-1"></a>    <span class="at">Scenario =</span> label,</span>
+<span id="cb6-234"><a href="#cb6-234" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Similar training orders</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">format</span>(n_similar, <span class="at">big.mark =</span> <span class="st">","</span>),</span>
+<span id="cb6-235"><a href="#cb6-235" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Route median, all months (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(route_median_days, <span class="dv">1</span>),</span>
+<span id="cb6-236"><a href="#cb6-236" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Olist estimate (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(olist_estimate, <span class="dv">1</span>),</span>
+<span id="cb6-237"><a href="#cb6-237" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Lasso prediction (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(lasso_pred, <span class="dv">1</span>),</span>
+<span id="cb6-238"><a href="#cb6-238" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Tree prediction (days)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(tree_pred, <span class="dv">1</span>)</span>
+<span id="cb6-239"><a href="#cb6-239" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb6-240"><a href="#cb6-240" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Predicted delivery days for six typical order profiles"</span>)</span>
+<span id="cb6-241"><a href="#cb6-241" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-242"><a href="#cb6-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-245"><a href="#cb6-245" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-246"><a href="#cb6-246" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scenario-plot</span></span>
+<span id="cb6-247"><a href="#cb6-247" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Model prediction (bars) vs. Olist's checkout estimate (diamonds) for six order profiles"</span></span>
+<span id="cb6-248"><a href="#cb6-248" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4.5</span></span>
+<span id="cb6-249"><a href="#cb6-249" aria-hidden="true" tabindex="-1"></a>scn_res <span class="sc">|&gt;</span></span>
+<span id="cb6-250"><a href="#cb6-250" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">label =</span> <span class="fu">fct_reorder</span>(label, tree_pred)) <span class="sc">|&gt;</span></span>
+<span id="cb6-251"><a href="#cb6-251" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">y =</span> label)) <span class="sc">+</span></span>
+<span id="cb6-252"><a href="#cb6-252" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="fu">aes</span>(<span class="at">x =</span> tree_pred), <span class="at">fill =</span> <span class="st">"#2b8cbe"</span>, <span class="at">width =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb6-253"><a href="#cb6-253" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> olist_estimate), <span class="at">shape =</span> <span class="dv">18</span>, <span class="at">size =</span> <span class="dv">4</span>, <span class="at">color =</span> <span class="st">"#d95f02"</span>) <span class="sc">+</span></span>
+<span id="cb6-254"><a href="#cb6-254" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb6-255"><a href="#cb6-255" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Same seller, different routes: predicted delivery time"</span>,</span>
+<span id="cb6-256"><a href="#cb6-256" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Bars: decision tree prediction. Diamonds: Olist's estimate for the same profile"</span>,</span>
+<span id="cb6-257"><a href="#cb6-257" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Days"</span>, <span class="at">y =</span> <span class="cn">NULL</span></span>
+<span id="cb6-258"><a href="#cb6-258" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb6-259"><a href="#cb6-259" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb6-260"><a href="#cb6-260" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-261"><a href="#cb6-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-264"><a href="#cb6-264" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-265"><a href="#cb6-265" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scenario-values</span></span>
+<span id="cb6-266"><a href="#cb6-266" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb6-267"><a href="#cb6-267" aria-hidden="true" tabindex="-1"></a>lo_row <span class="ot">&lt;-</span> scn_res[<span class="fu">which.min</span>(scn_res<span class="sc">$</span>tree_pred), ]</span>
+<span id="cb6-268"><a href="#cb6-268" aria-hidden="true" tabindex="-1"></a>hi_row <span class="ot">&lt;-</span> scn_res[<span class="fu">which.max</span>(scn_res<span class="sc">$</span>tree_pred), ]</span>
+<span id="cb6-269"><a href="#cb6-269" aria-hidden="true" tabindex="-1"></a>same_off  <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>tree_pred[<span class="dv">1</span>]</span>
+<span id="cb6-270"><a href="#cb6-270" aria-hidden="true" tabindex="-1"></a>same_peak <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>tree_pred[<span class="dv">2</span>]</span>
+<span id="cb6-271"><a href="#cb6-271" aria-hidden="true" tabindex="-1"></a>ne_off    <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>tree_pred[<span class="dv">4</span>]</span>
+<span id="cb6-272"><a href="#cb6-272" aria-hidden="true" tabindex="-1"></a>ne_peak   <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>tree_pred[<span class="dv">5</span>]</span>
+<span id="cb6-273"><a href="#cb6-273" aria-hidden="true" tabindex="-1"></a>lasso_same_off  <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>lasso_pred[<span class="dv">1</span>]</span>
+<span id="cb6-274"><a href="#cb6-274" aria-hidden="true" tabindex="-1"></a>lasso_same_peak <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>lasso_pred[<span class="dv">2</span>]</span>
+<span id="cb6-275"><a href="#cb6-275" aria-hidden="true" tabindex="-1"></a>lasso_ne_off    <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>lasso_pred[<span class="dv">4</span>]</span>
+<span id="cb6-276"><a href="#cb6-276" aria-hidden="true" tabindex="-1"></a>lasso_ne_peak   <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>lasso_pred[<span class="dv">5</span>]</span>
+<span id="cb6-277"><a href="#cb6-277" aria-hidden="true" tabindex="-1"></a>max_model_gap <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(scn_res<span class="sc">$</span>lasso_pred <span class="sc">-</span> scn_res<span class="sc">$</span>tree_pred))</span>
+<span id="cb6-278"><a href="#cb6-278" aria-hidden="true" tabindex="-1"></a>olist_gap <span class="ot">&lt;-</span> scn_res<span class="sc">$</span>olist_estimate <span class="sc">-</span> scn_res<span class="sc">$</span>tree_pred</span>
+<span id="cb6-279"><a href="#cb6-279" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-280"><a href="#cb6-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-281"><a href="#cb6-281" aria-hidden="true" tabindex="-1"></a>**What the scenarios show**</span>
+<span id="cb6-282"><a href="#cb6-282" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-283"><a href="#cb6-283" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Route changes the answer more than anything else.** Predicted delivery runs from <span class="in">`r round(lo_row$tree_pred, 1)`</span> days (<span class="in">`r lo_row$label`</span>) to <span class="in">`r round(hi_row$tree_pred, 1)`</span> days (<span class="in">`r hi_row$label`</span>) according to the tree.</span>
+<span id="cb6-284"><a href="#cb6-284" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The peak month adds days on the same route.** Moving the same-state order from August to November changes the tree prediction by <span class="in">`r sprintf("%+.1f", same_peak - same_off)`</span> days (lasso: <span class="in">`r sprintf("%+.1f", lasso_same_peak - lasso_same_off)`</span>), and moving the Bahia order by <span class="in">`r sprintf("%+.1f", ne_peak - ne_off)`</span> days (lasso: <span class="in">`r sprintf("%+.1f", lasso_ne_peak - lasso_ne_off)`</span>). The size of the seasonal effect depends on the route, which only the tree can express fully.</span>
+<span id="cb6-285"><a href="#cb6-285" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The two models mostly agree.** They differ by at most <span class="in">`r round(max_model_gap, 1)`</span> days across the six profiles. Where they disagree most, treat the prediction as less certain.</span>
+<span id="cb6-286"><a href="#cb6-286" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Olist's estimate also changes with route, but not in step with the model.** The estimate minus the tree prediction ranges from <span class="in">`r round(min(olist_gap), 1)`</span> to <span class="in">`r round(max(olist_gap), 1)`</span> days across the six profiles, so the amount of padding is not the same for every route.</span>
+<span id="cb6-287"><a href="#cb6-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-288"><a href="#cb6-288" aria-hidden="true" tabindex="-1"></a>These profiles use real typical values for each route, and the purchase year is set to the most common year on that route. They illustrate the model; they are not forecasts of any single order.</span>
+<span id="cb6-289"><a href="#cb6-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-290"><a href="#cb6-290" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-291"><a href="#cb6-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-292"><a href="#cb6-292" aria-hidden="true" tabindex="-1"></a><span class="fu">## Late deliveries by purchase month</span></span>
+<span id="cb6-293"><a href="#cb6-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-296"><a href="#cb6-296" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-297"><a href="#cb6-297" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: monthly</span></span>
+<span id="cb6-298"><a href="#cb6-298" aria-hidden="true" tabindex="-1"></a>month_tbl <span class="ot">&lt;-</span> tp <span class="sc">|&gt;</span></span>
+<span id="cb6-299"><a href="#cb6-299" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month_num =</span> <span class="fu">as.integer</span>(<span class="fu">as.character</span>(purchase_month))) <span class="sc">|&gt;</span></span>
+<span id="cb6-300"><a href="#cb6-300" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(month_num) <span class="sc">|&gt;</span></span>
+<span id="cb6-301"><a href="#cb6-301" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb6-302"><a href="#cb6-302" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(),</span>
+<span id="cb6-303"><a href="#cb6-303" aria-hidden="true" tabindex="-1"></a>    <span class="at">actual =</span> <span class="fu">mean</span>(delivery_days),</span>
+<span id="cb6-304"><a href="#cb6-304" aria-hidden="true" tabindex="-1"></a>    <span class="at">olist =</span> <span class="fu">mean</span>(estimated_days),</span>
+<span id="cb6-305"><a href="#cb6-305" aria-hidden="true" tabindex="-1"></a>    <span class="at">late =</span> <span class="fu">mean</span>(delivery_days <span class="sc">&gt;</span> estimated_days),</span>
+<span id="cb6-306"><a href="#cb6-306" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb6-307"><a href="#cb6-307" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb6-308"><a href="#cb6-308" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">factor</span>(month.abb[month_num], <span class="at">levels =</span> month.abb))</span>
+<span id="cb6-309"><a href="#cb6-309" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-310"><a href="#cb6-310" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(month_tbl, <span class="fu">aes</span>(<span class="at">x =</span> month, <span class="at">y =</span> late)) <span class="sc">+</span></span>
+<span id="cb6-311"><a href="#cb6-311" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">fill =</span> <span class="st">"#2b8cbe"</span>, <span class="at">width =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb6-312"><a href="#cb6-312" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
+<span id="cb6-313"><a href="#cb6-313" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb6-314"><a href="#cb6-314" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Share of orders arriving after Olist's estimate, by purchase month"</span>,</span>
+<span id="cb6-315"><a href="#cb6-315" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Test set, all years pooled"</span>,</span>
+<span id="cb6-316"><a href="#cb6-316" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Late vs. estimate"</span></span>
+<span id="cb6-317"><a href="#cb6-317" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb6-318"><a href="#cb6-318" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb6-319"><a href="#cb6-319" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-320"><a href="#cb6-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-323"><a href="#cb6-323" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-324"><a href="#cb6-324" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: monthly-values</span></span>
+<span id="cb6-325"><a href="#cb6-325" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb6-326"><a href="#cb6-326" aria-hidden="true" tabindex="-1"></a>late_top <span class="ot">&lt;-</span> month_tbl <span class="sc">|&gt;</span> <span class="fu">arrange</span>(<span class="fu">desc</span>(late)) <span class="sc">|&gt;</span> <span class="fu">slice_head</span>(<span class="at">n =</span> <span class="dv">3</span>)</span>
+<span id="cb6-327"><a href="#cb6-327" aria-hidden="true" tabindex="-1"></a>late_low <span class="ot">&lt;-</span> month_tbl <span class="sc">|&gt;</span> <span class="fu">arrange</span>(late) <span class="sc">|&gt;</span> <span class="fu">slice_head</span>(<span class="at">n =</span> <span class="dv">1</span>)</span>
+<span id="cb6-328"><a href="#cb6-328" aria-hidden="true" tabindex="-1"></a>slow_month_note <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">as.character</span>(late_top<span class="sc">$</span>month) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Feb"</span>, <span class="st">"Mar"</span>, <span class="st">"Nov"</span>, <span class="st">"Dec"</span>))) {</span>
+<span id="cb6-329"><a href="#cb6-329" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Some of these are months the exploration page flagged as slow (February, March, November, December)."</span></span>
+<span id="cb6-330"><a href="#cb6-330" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb6-331"><a href="#cb6-331" aria-hidden="true" tabindex="-1"></a>  <span class="st">"These differ from the slow months flagged in the exploration page, which is worth a closer look."</span></span>
+<span id="cb6-332"><a href="#cb6-332" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-333"><a href="#cb6-333" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-334"><a href="#cb6-334" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-335"><a href="#cb6-335" aria-hidden="true" tabindex="-1"></a>The late share is highest for orders placed in <span class="in">`r paste(as.character(late_top$month), collapse = ", ")`</span> (<span class="in">`r paste(scales::percent(late_top$late, accuracy = 0.1), collapse = ", ")`</span>) and lowest in <span class="in">`r as.character(late_low$month)`</span> (<span class="in">`r scales::percent(late_low$late, accuracy = 0.1)`</span>). Months pool different years in a dataset that covers 2016 to 2018, so some of this reflects specific events or demand peaks in a single year, not a calendar pattern. <span class="in">`r slow_month_note`</span></span>
+<span id="cb6-336"><a href="#cb6-336" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-337"><a href="#cb6-337" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-338"><a href="#cb6-338" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-339"><a href="#cb6-339" aria-hidden="true" tabindex="-1"></a><span class="fu">## What the team should do</span></span>
+<span id="cb6-340"><a href="#cb6-340" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-341"><a href="#cb6-341" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Make the delivery promise route-aware.** Set the checkout estimate from seller state, customer state, and month, instead of one rule for everything. The tier table shows how unevenly the current estimate is padded (<span class="in">`r round(pad_lo, 1)`</span> days on <span class="in">`r pad_lo_tier`</span>, <span class="in">`r round(pad_hi, 1)`</span> days on <span class="in">`r pad_hi_tier`</span>). A pilot of a route-aware promise on a few routes would show how many days could be saved without raising the late rate. *Measure it by:* average promised days and the late rate, by route tier.</span>
+<span id="cb6-342"><a href="#cb6-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-343"><a href="#cb6-343" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Show a delivery window, not a single date.** Point predictions are good on average but miss the slow tail, and the width of the uncertainty depends on the route (about <span class="in">`r round(narrow_width)`</span> days on the tightest tier and <span class="in">`r round(wide_width)`</span> days on <span class="in">`r wide_tier`</span>, measured as the middle 80% of outcomes). Offering "between day X and day Y" is more honest and matches how the model behaves. *Measure it by:* the share of orders that land inside the window, which should be close to the 80% it is designed for.</span>
+<span id="cb6-344"><a href="#cb6-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-345"><a href="#cb6-345" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Add a seasonal buffer for the slow months.** Orders placed in <span class="in">`r paste(as.character(late_top$month), collapse = ", ")`</span> are late most often. Extend the promise or add carrier capacity in those months. Check whether the pattern holds in newer data before committing. *Measure it by:* the late rate in those months, year over year.</span>
+<span id="cb6-346"><a href="#cb6-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-347"><a href="#cb6-347" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Treat the north and northeast as a separate service tier.** Routes into these regions are the slowest and the hardest to predict (the highest-error tier is <span class="in">`r mae_hi_tier`</span>, with an average miss of <span class="in">`r round(mae_hi, 1)`</span> days). Set separate expectations, review carrier performance on these lanes, and consider whether stocking inventory closer to these customers is worth testing. *Measure it by:* delivery time and prediction error on these lanes, tracked separately.</span>
+<span id="cb6-348"><a href="#cb6-348" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-349"><a href="#cb6-349" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Test whether sourcing closer to the buyer helps.** Same-state routes are the fastest and the single most-used feature in the tree. That is an association, not proof that moving a seller would change delivery time, because sellers and buyers in the same state may also differ in carrier mix and product type. A small pilot, such as a "ships from your state" badge or search ranking, would show whether the effect is real. *Measure it by:* conversion and delivery time on the pilot group against a control.</span>
+<span id="cb6-350"><a href="#cb6-350" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-351"><a href="#cb6-351" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Do not spend effort on purchase weekday, time of day, or listing quality.** Weekday and time of day barely moved delivery outcomes in the exploration, and listing-quality fields added nothing visible to the models. Put effort into route, carrier, and seller handling instead.</span>
+<span id="cb6-352"><a href="#cb6-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-353"><a href="#cb6-353" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span>**Look at seller handling time.** The shipping deadline the seller was given (<span class="in">`ship_window_days`</span>) is one of the more-used features in the tree. We cannot tell from this data whether sellers who are given more time actually take more time, so this is a question to investigate with seller-level shipping timestamps.</span>
+<span id="cb6-354"><a href="#cb6-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-355"><a href="#cb6-355" aria-hidden="true" tabindex="-1"></a><span class="ss">8. </span>**Keep the model honest over time.** Retrain on recent orders at a regular interval, watch average error by route tier, and treat a sustained rise in error as a sign that carrier performance or demand has shifted.</span>
+<span id="cb6-356"><a href="#cb6-356" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-357"><a href="#cb6-357" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-358"><a href="#cb6-358" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-359"><a href="#cb6-359" aria-hidden="true" tabindex="-1"></a><span class="fu">## How far to trust it</span></span>
+<span id="cb6-360"><a href="#cb6-360" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-361"><a href="#cb6-361" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Accuracy is useful, not exact.** A typical miss is about <span class="in">`r round(best_row$mae, 1)`</span> days, and the average error is much smaller than the error on the worst orders (RMSE <span class="in">`r round(best_row$rmse, 1)`</span> days). This is good for checkout windows and capacity planning, not for day-exact commitments.</span>
+<span id="cb6-362"><a href="#cb6-362" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The slow tail is still hard.** The model under-predicts the slowest orders, because it predicts a typical value for a right-skewed target. That is why we recommend a window with a buffer.</span>
+<span id="cb6-363"><a href="#cb6-363" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**A random split tests similar orders, not future ones.** The test orders come from the same 2016 to 2018 period as the training orders. The model has not been tested on a new carrier contract, a strike, or a different year.</span>
+<span id="cb6-364"><a href="#cb6-364" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Single test set.** Differences of a few hundredths of a day between models are not meaningful.</span>
+<span id="cb6-365"><a href="#cb6-365" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Order-item grain.** <span class="in">`delivery_days`</span> is an order-level duration repeated across the items of an order, so multi-item orders carry slightly more weight in the metrics.</span>
+<span id="cb6-366"><a href="#cb6-366" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Associations, not causes.** The importance scores and coefficients show what the models rely on to predict. They do not show what causes a delay, which is why recommendations 5 and 7 are framed as tests.</span>
+<span id="cb6-367"><a href="#cb6-367" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Coarse geography.** Zip-code region is only a rough stand-in for distance, and the scenarios use median values for each route.</span>
+<span id="cb6-368"><a href="#cb6-368" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-369"><a href="#cb6-369" aria-hidden="true" tabindex="-1"></a><span class="fu">## What would improve it next</span></span>
+<span id="cb6-370"><a href="#cb6-370" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-371"><a href="#cb6-371" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Real seller-to-customer distance** from Olist's geolocation table, which is the most promising feature not yet used.</span>
+<span id="cb6-372"><a href="#cb6-372" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Stage-level timestamps** (approval, handoff to carrier, delivery), so seller handling time and carrier transit time can be modelled separately and each team can see its own share.</span>
+<span id="cb6-373"><a href="#cb6-373" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**A time-based test**: train on earlier months and test on later ones, which is a stricter check than a random split.</span>
+<span id="cb6-374"><a href="#cb6-374" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Non-linear ensemble models and a log-transformed target.** Earlier experiments suggested these can lower typical error, at the cost of being harder to explain.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
