@@ -108,11 +108,14 @@ route_stats <- olist |>
     actual = mean(delivery_days),
     promised = mean(estimated_days),
     early10 = mean(estimated_days - delivery_days >= 10),
+    sd_days = sd(delivery_days),
     .groups = "drop"
   )
 same  <- route_stats |> filter(route_type == "Same state")
 cross <- route_stats |> filter(route_type == "Cross-state")
 route_gap <- cross$actual - same$actual
+pad_same  <- same$promised - same$actual
+pad_cross <- cross$promised - cross$actual
 mean_padding <- mean(olist$estimated_days - olist$delivery_days)
 ```
 
@@ -208,7 +211,9 @@ status_tbl |>
 n_canceled      <- sum(olist$order_status == "canceled")
 canceled_rate   <- n_canceled / nrow(olist)
 n_unknown_cat   <- sum(olist$product_category_name == "unknown")
-n_zero_weight   <- sum(olist$product_weight_g == 0)
+n_zero_weight   <- sum(olist$product_weight_g == 0, na.rm = TRUE)
+max_ship        <- max(olist$ship_window_days, na.rm = TRUE)
+n_ship_long     <- sum(olist$ship_window_days > 60, na.rm = TRUE)
 dropped_items   <- 112650 - nrow(olist)   # 112,650 items before cleaning, from the Data page
 ```
 
@@ -220,6 +225,7 @@ decision_tbl <- tibble(
     "Canceled orders with a delivery date",
     "Product category missing (set to \"unknown\")",
     "Product weight recorded as 0 g",
+    "Seller shipping window over 60 days",
     "Delivered on the purchase date (0 days)",
     "Very long deliveries (tail up to the maximum)"
   ),
@@ -228,16 +234,18 @@ decision_tbl <- tibble(
     paste0(n_canceled, " (", scales::percent(canceled_rate, accuracy = 0.001), ")"),
     paste0(num(n_unknown_cat, 0), " (", pct1(n_unknown_cat / nrow(olist)), ")"),
     as.character(n_zero_weight),
+    paste0(n_ship_long, " (longest: ", num(max_ship, 0), " days)"),
     as.character(tgt$zero_days),
     paste0(num(tgt$beyond80, 0), " over 80 days")
   ),
-  Decision = c("Dropped on the Data page", "Kept", "Kept; product attributes filled with the median on the Data page",
-               "Kept", "Kept", "Kept"),
+  Decision = c("Dropped on the Data page", "Kept", "Kept; numeric product fields are filled later, inside the model recipe",
+               "Kept", "Kept; flagged for the models", "Kept", "Kept"),
   Reason = c(
     "delivery_days cannot be computed without a delivery date",
     "The rate is far too small to move any average, and the delivery date is recorded",
     "Removing them would lose items whose route and freight are fully known",
     "Weight only matters for density and weight-based comparisons, and only a handful of items are affected",
+    "A deadline of months is implausible as a handling time; it is used as a predictor on the Modeling page, where a few extreme values can pull the fit, so it is flagged rather than silently changed",
     "The delivery date is recorded; these are the fastest deliveries",
     "These are real slow deliveries, and removing them would hide the cases Olist most needs to anticipate"
   )
@@ -246,7 +254,7 @@ decision_tbl <- tibble(
 kable(decision_tbl, caption = "Data decisions that affect delivery_days, with the rows affected")
 ```
 
-All counts on this page are order items. The Data page counts rows the same way, and an order with several items can contribute several canceled rows, so the number of canceled orders is smaller than the number of canceled items. The cancellation rate is `r scales::percent(canceled_rate, accuracy = 0.001)` of items (`r n_canceled` items), so canceled orders cannot change any average noticeably and they stay. Product attributes such as weight and size were filled with the median for `r pct1(n_unknown_cat / nrow(olist))` of items. This was done on the Data page before the train/test split, so the medians come from all items; the effect is small, and the limitations section says so.
+All counts on this page are order items. The Data page counts rows the same way, and an order with several items can contribute several canceled rows, so the number of canceled orders is smaller than the number of canceled items. The cancellation rate is `r scales::percent(canceled_rate, accuracy = 0.001)` of items (`r n_canceled` items), so canceled orders cannot change any average noticeably and they stay. The product category was missing for `r pct1(n_unknown_cat / nrow(olist))` of items and was set to "unknown". Missing numeric product fields (name length, photos, weight, size) are left as missing on the Data page, whose missing-value tables give the count for each column; the models fill them with the training-set median inside the recipe, and the summaries on this page skip them.
 
 Two fields built on this page, `delayed_days` and `delivered_status`, are computed from `delivery_days` and Olist's estimate. They describe the outcome, so they are used for exploration only and are excluded from the models.
 
@@ -277,6 +285,8 @@ olist |>
   mutate(across(c(Min, Average, Median, Max, SD), \(x) round(x, 1))) |>
   kable(format.args = list(big.mark = ","), caption = "Numeric columns used in the analysis")
 ```
+
+The Missing column counts items with a missing value. The product weight and size fields have a few missing items, which are left as missing here and filled later inside the model recipe.
 
 ```{r}
 #| label: level-profile
@@ -358,13 +368,13 @@ region_tbl <- olist |> summ_by(customer_region) |> arrange(desc(avg_days))
 kable(fmt_summ(route_tbl, "Route"), digits = 1, format.args = list(big.mark = ","),
       caption = "Delivery days by route type")
 kable(fmt_summ(region_tbl, "Customer region"), digits = 1, format.args = list(big.mark = ","),
-      caption = "Delivery days by customer macro-region")
+      caption = "Delivery days by customer region (five groups of states)")
 
 slow_region <- region_tbl |> slice_head(n = 1)
 fast_region <- region_tbl |> slice_tail(n = 1)
 ```
 
-Same-state items average `r num(same$actual)` days and cross-state items `r num(cross$actual)` days, so crossing a state border adds `r num(route_gap)` days on average. By destination region, `r slow_region$customer_region` is slowest (`r num(slow_region$avg_days)` days) and `r fast_region$customer_region` fastest (`r num(fast_region$avg_days)` days). Route therefore looks like a stronger separator than any single product attribute, and we test that with a chart in Section 5.
+Same-state items average `r num(same$actual)` days and cross-state items `r num(cross$actual)` days, so crossing a state border adds `r num(route_gap)` days on average. Olist's average estimate is `r num(same$promised)` days for same-state items and `r num(cross$promised)` days for cross-state items. By destination region, `r slow_region$customer_region` is slowest (`r num(slow_region$avg_days)` days) and `r fast_region$customer_region` fastest (`r num(fast_region$avg_days)` days). Route therefore looks like a stronger separator than any single product attribute, and we test that with a chart in Section 5.
 
 ### 4.3 Where do sellers ship from, and does origin matter?
 
@@ -390,7 +400,7 @@ slow_seller_min <- olist |> filter(seller_state == slow_seller$seller_state) |>
 top_seller_state <- olist |> count(seller_state, sort = TRUE) |> slice_head(n = 1)
 ```
 
-The slowest seller state is `r slow_seller$seller_state` at `r num(slow_seller$avg_days)` days on average, but it rests on only `r num(slow_seller$n, 0)` items. To check whether a few extreme items drive that average, we look at its fastest item: it still took `r num(slow_seller_min, 0)` days, so the slowness is not just an outlier effect. Shipping origin matters, but this state is too small to say much about Olist as a whole. The largest seller state is `r top_seller_state$seller_state`, with `r pct0(top_seller_state$n / nrow(olist))` of all items, so most orders ship from one hub. Sellers outside that hub are a small minority of items, which is why seller-state averages are noisy.
+The slowest seller state is `r slow_seller$seller_state` at `r num(slow_seller$avg_days)` days on average, but it rests on only `r num(slow_seller$n, 0)` items, so one order can move that average and we read nothing into it. The largest seller state is `r top_seller_state$seller_state`, with `r pct0(top_seller_state$n / nrow(olist))` of all items, so most orders ship from one hub. The other `r pct0(1 - top_seller_state$n / nrow(olist))` of items are spread across many states, so averages for smaller seller states rest on fewer items.
 
 ### 4.4 Do some product categories take longer?
 
@@ -402,7 +412,7 @@ cat_tbl <- olist |>
     n = n(),
     avg_days = mean(delivery_days),
     median_days = median(delivery_days),
-    weight_kg = median(product_weight_g) / 1000,
+    weight_kg = median(product_weight_g, na.rm = TRUE) / 1000,
     .groups = "drop"
   ) |>
   filter(n >= 500) |>
@@ -416,10 +426,10 @@ bind_rows(slice_head(cat_tbl, n = 8), slice_tail(cat_tbl, n = 4)) |>
                          " categories with at least 500 items"))
 
 slow_cat <- cat_tbl |> slice_head(n = 1)
-cat_weight_r <- cor(cat_tbl$avg_days, cat_tbl$weight_kg)
+cat_weight_r <- cor(cat_tbl$avg_days, cat_tbl$weight_kg, use = "complete.obs")
 ```
 
-`r slow_cat$category` is the slowest category with enough items, at `r num(slow_cat$avg_days)` days on average and a median item weight of `r num(slow_cat$weight_kg)` kg. Across the `r nrow(cat_tbl)` categories shown in the filter, average delivery days and median weight have a correlation of `r num(cat_weight_r, 2)`. Heavier goods are plausibly harder to move, but the link is only partial, and category also reflects where sellers of that category are located.
+`r slow_cat$category` is the slowest category with enough items, at `r num(slow_cat$avg_days)` days on average and a median item weight of `r num(slow_cat$weight_kg)` kg. Across the `r nrow(cat_tbl)` categories with at least 500 items, average delivery days and median weight have a correlation of `r num(cat_weight_r, 2)`. Heavier goods are plausibly harder to move, but the link is only partial, and category also reflects where sellers of that category are located.
 
 ### 4.5 Does purchase timing matter?
 
@@ -577,7 +587,7 @@ monthly |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-Delivery time moves by `r num(peak_month$avg_days - low_month$avg_days)` days between the slowest month (`r format(peak_month$purchase_year_month, "%B %Y")`) and the fastest (`r format(low_month$purchase_year_month, "%B %Y")`), so the average is not stable over time. `r n_months_dropped` months with fewer than 100 items (the first and last months of the data) are left out of the chart. Plausible explanations are holiday and promotion demand peaks and the platform's rapid growth in 2017 and 2018, which strained delivery capacity; this data cannot separate them. Seasons are not a good explanation, because November to March is summer in Brazil. The practical point is that purchase month and year both carry information.
+Delivery time moves by `r num(peak_month$avg_days - low_month$avg_days)` days between the slowest month (`r format(peak_month$purchase_year_month, "%B %Y")`) and the fastest (`r format(low_month$purchase_year_month, "%B %Y")`), so the average is not stable over time. `r n_months_dropped` months with fewer than 100 items (the first and last months of the data) are left out of the chart. Plausible explanations are holiday and promotion demand (for example Black Friday and Christmas) and the platform's rapid growth in 2017 and 2018, which may have strained delivery capacity; this data cannot separate them. The slow months in the table in Section 4.5 fall in the Brazilian summer, so cold weather cannot be the explanation. The practical point is that purchase month and year both carry information.
 
 ### 5.3 How far is Olist's estimate from reality?
 
@@ -599,7 +609,7 @@ ggplot(olist, aes(x = estimated_days, y = delivery_days)) +
   )
 ```
 
-Most of the mass lies below the diagonal. The estimate is on average `r num(mean_padding)` days longer than the actual delivery, and on same-state routes `r pct0(same$early10)` of items arrive at least 10 days before the estimated date (against `r pct0(cross$early10)` on cross-state routes). The estimate does rise with actual delivery time, so it contains route information, but it is padded by more than customers need on short routes.
+Most of the mass lies below the diagonal. The estimate is on average `r num(mean_padding)` days longer than the actual delivery, and on same-state routes `r pct0(same$early10)` of items arrive at least 10 days before the estimated date (against `r pct0(cross$early10)` on cross-state routes). The estimate does rise with actual delivery time, so it contains route information. It is padded on both route types: the average estimate is `r num(same$promised)` days against `r num(same$actual)` actual on same-state routes (`r num(pad_same)` days of padding) and `r num(cross$promised)` against `r num(cross$actual)` on cross-state routes (`r num(pad_cross)` days). Cross-state routes carry more padding in absolute days and in the share of items arriving 10 or more days early.
 
 ### 5.4 Do handling time and order size matter?
 
@@ -628,7 +638,7 @@ ggplot(handling, aes(x = level, y = med)) +
   geom_pointrange(aes(ymin = q25, ymax = q75), color = blue) +
   facet_wrap(~group, scales = "free_x") +
   labs(
-    title = "Handling and order size shift delivery time by a few days at most",
+    title = "Handling time and order size move delivery time, but less than route does",
     x = NULL, y = "Median delivery days (bars: 25th to 75th percentile)"
   ) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
@@ -637,7 +647,7 @@ multi_seller <- handling |> filter(group == "Sellers per order")
 sw <- handling |> filter(group == "Shipping window")
 ```
 
-Orders with two or more sellers have a median of `r multi_seller$med[2]` days against `r multi_seller$med[1]` for single-seller orders. Across shipping-window groups the median runs from `r min(sw$med)` to `r max(sw$med)` days. The shipping window is a deadline the seller was given, not the time the seller actually took, so its link to delivery time is indirect. These features are kept in the models, but they matter less than route.
+Orders with two or more sellers have a median of `r multi_seller$med[2]` days against `r multi_seller$med[1]` for single-seller orders, `r if (multi_seller$med[2] < multi_seller$med[1]) "the opposite of what we expected" else "as expected"`; the data cannot say why, and it may reflect which sellers and routes these orders involve. Across shipping-window groups the median runs from `r min(sw$med)` to `r max(sw$med)` days. The shipping window is a deadline the seller was given, not the time the seller actually took, so its link to delivery time is indirect. These features are kept in the models, but they matter less than route.
 
 ### 5.5 Does freight signal slower delivery?
 
@@ -647,9 +657,8 @@ Orders with two or more sellers have a median of `r multi_seller$med[2]` days ag
 #| label: fig-freight-weight
 #| fig-cap: "Freight value against product weight (both on log scales; darker = more items)"
 #| fig-height: 4.5
-rho <- cor(olist$product_weight_g[olist$product_weight_g > 0],
-           olist$freight_value[olist$product_weight_g > 0],
-           method = "spearman")
+pos_weight <- olist |> filter(!is.na(product_weight_g), product_weight_g > 0)
+rho <- cor(pos_weight$product_weight_g, pos_weight$freight_value, method = "spearman")
 rho_word <- if (abs(rho) >= 0.5) "strongly" else if (abs(rho) >= 0.3) "moderately" else "weakly"
 
 olist |>
@@ -701,19 +710,19 @@ Weight explains part of freight, with wide spread, so freight also reflects dist
 1. **Delivery time is right-skewed.** The median is `r num(tgt$med, 0)` days and the average `r num(tgt$avg)`, with a tail to `r num(tgt$max, 0)` days. A small share of very slow items drives the gap.
 2. **Route is the strongest separator.** Same-state items average `r num(same$actual)` days, against `r num(cross$actual)` days across states, and the heatmap shows delivery time changing strongly with the customer's state.
 3. **Purchase month matters, weekday and time of day matter little.** Months differ by `r num(month_range)` days, while weekday and time of day differ by `r num(weekday_range)` and `r num(time_range)` days.
-4. **Olist's estimates are padded unevenly.** `r pct0(share_early)` of items arrive before the estimated date and only `r pct0(share_late)` after it. On same-state routes `r pct0(same$early10)` of items arrive at least 10 days early.
-5. **Handling and order size matter little.** Shipping window, items per order and sellers per order move the median by a few days at most.
+4. **Olist's estimates are padded on both route types, more across states.** `r pct0(share_early)` of items arrive before the estimated date and only `r pct0(share_late)` after it. At least 10 days early: `r pct0(same$early10)` of same-state items and `r pct0(cross$early10)` of cross-state items.
+5. **Handling and order size matter less than route.** The median moves from `r min(sw$med)` to `r max(sw$med)` days across shipping-window groups, and multi-seller orders are `r if (multi_seller$med[2] < multi_seller$med[1]) "not slower" else "slower"` than single-seller orders.
 6. **Package attributes add less than route.** Freight is linked to delivery time, partly because it reflects distance, while price, weight, and volume have weak straight-line correlations with it.
 
 ### Decision for Olist
 
-**Pilot a route-aware checkout estimate, starting with same-state routes.** Same-state items arrive in `r num(same$actual)` days on average against an average estimate of `r num(same$promised)` days, and `r pct0(same$early10)` of them arrive 10 or more days before the estimated date. A prediction of `delivery_days` based on seller state, customer state, and purchase month could tighten these estimates. The pilot should be judged by two numbers: the average promised days, which should fall, and the share of late items, which should not rise above today's `r pct1(share_late)`.
+**Pilot a route-aware checkout estimate, starting with same-state routes.** Same-state routes are the most consistent (SD `r num(same$sd_days)` days against `r num(cross$sd_days)` across states), so a tighter estimate there carries the least risk of late orders. Same-state items arrive in `r num(same$actual)` days on average against an average estimate of `r num(same$promised)` days. Cross-state routes carry more padding (`r num(pad_cross)` days against `r num(pad_same)`), so they are the larger prize, to take on once the same-state pilot shows the late share holds. A prediction of `delivery_days` based on seller state, customer state, and purchase month could tighten these estimates. Judge the pilot by two numbers: the average promised days, which should fall, and the share of late items, which should not rise above today's `r pct1(share_late)`.
 
 ### Limitations
 
-- **Delivered orders only.** Orders that were never delivered have no `delivery_days` and are excluded, so the data cannot tell us about the slowest or lost orders.
+- **Orders with a delivery date only.** Items with no delivery date are excluded, and the seven canceled items that do have one remain, so the data says nothing about orders that were never delivered or were lost.
 - **Partial years.** The data covers 2016 to 2018, with partial years at both ends, so month and year effects overlap.
-- **Pooled before the split.** This exploration uses all items before the train/test split on the Modeling page, and the median filling of product attributes on the Data page used all items too. Both have small effects, but a stricter design would do them after the split.
+- **Pooled before the split.** This exploration describes all items before the train/test split on the Modeling page. It only summarizes patterns and nothing from it is fed into the models, but the group averages here include rows that later become test rows.
 - **One row per item.** Orders with several items count several times, so multi-item orders carry more weight in the averages.
 - **Coarse geography.** State and region are rough stand-ins for distance, and the data has no carrier or weather information.
 - **Unused tables.** The payments and reviews tables are not used in this analysis.
@@ -723,7 +732,7 @@ Weight explains part of freight, with wide spread, so freight also reflects dist
 
 - **Target.** Keep `delivery_days` on its raw scale, so errors are in days, and report MAE alongside RMSE because of the long tail.
 - **Leakage.** `delayed_days`, `delivered_status`, `order_status`, and the delivery date are known only after delivery and are excluded from the predictors.
-- **Features to build.** Same-state route flag, regions, package volume and density, seller shipping window, and items per order.
+- **Features to build.** Same-state route flag, regions, package volume and density, seller shipping window, and items and sellers per order.
 - **States.** Small states are the slowest destinations, so they are not merged into an "other" group.
 - **Timing.** Purchase month and year are treated as categories because their effect is not a straight line.
 - **Benchmarks.** Compare against always predicting the average, and against Olist's own estimate.

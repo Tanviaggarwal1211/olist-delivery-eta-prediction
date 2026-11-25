@@ -53,65 +53,74 @@ glimpse(sellers)
 ```
 
 ## Data dictionary
-Customers Table
+
+Column meanings for the six tables. Prices and freight are in Brazilian reais (BRL).
+
+**Customers table**
+
 | Column | Type | Meaning |
 |---|---|---|
-customer_id	text	Id per order, links orders to customers
-customer_unique_id	text	Permanent id of a real customer
-customer_zip_code_prefix	number	First 5 digits of zip code
-customer_city	text	Customer’s city
-customer_state	text	Two-letter state code
+| `customer_id` | text | Id per order; links an order to a customer record |
+| `customer_unique_id` | text | Permanent id of a real customer |
+| `customer_zip_code_prefix` | number | First 5 digits of the customer's zip code |
+| `customer_city` | text | Customer's city |
+| `customer_state` | text | Two-letter state code |
 
-Order_items Table
+**Orders table** (one row per order)
+
 | Column | Type | Meaning |
 |---|---|---|
-order_id	text	Id of the order
-order_item_id	integer	Item position within the order
-product_id	text	Id of the product
-seller_id	text	Id of the seller
-shipping_limit_date	datetime	Seller’s deadline to ship the item
-price	number	Item price in BRL
-freight_value	number	Shipping cost in BRL
+| `order_id` | text | Id of the order |
+| `customer_id` | text | Links the order to the customers table |
+| `order_status` | text | Status of the order (for example delivered or canceled) |
+| `order_purchase_timestamp` | datetime | When the customer placed the order |
+| `purchase_year`, `purchase_month`, `purchase_day_of_week` | number / text | Parts of the purchase timestamp |
+| `order_delivered_customer_date` | datetime | When the customer received the order |
+| `order_estimated_delivery_date` | datetime | Delivery date Olist estimated at checkout |
+| `delivery_days` | number | **Target.** Whole days from purchase to delivery; missing when there is no delivery date |
+| `estimated_days` | number | Whole days from purchase to Olist's estimated delivery date |
 
-Category_translation Table
+**Order items table** (one row per item in an order)
+
 | Column | Type | Meaning |
 |---|---|---|
-product_category_name	text	Category name in Portuguese
-product_category_name_english	text	Category name in English
+| `order_id` | text | Id of the order |
+| `order_item_id` | number | Item position within the order |
+| `product_id` | text | Id of the product |
+| `seller_id` | text | Id of the seller |
+| `shipping_limit_date` | datetime | Seller's deadline to hand the item to the carrier |
+| `price` | number | Item price in BRL |
+| `freight_value` | number | Shipping cost in BRL |
 
+**Products table**
 
-Orders Table
 | Column | Type | Meaning |
 |---|---|---|
-order_id	text	Id of the order
-order_item_id	integer	Item position in the order
-product_id	text	Id of the product
-seller_id	text	Id of the seller
-shipping_limit_date	datetime	Seller’s shipping deadline
-price	number	Item price in BRL
-freight_value	number	Shipping cost 
+| `product_id` | text | Id of the product |
+| `product_category_name` | text | Product category in Portuguese |
+| `product_name_lenght` | number | Characters in the product name (spelled as in the raw file; renamed below) |
+| `product_description_lenght` | number | Characters in the product description (renamed below) |
+| `product_photos_qty` | number | Number of published photos |
+| `product_weight_g` | number | Weight in grams |
+| `product_length_cm`, `product_height_cm`, `product_width_cm` | number | Package dimensions in cm |
 
+**Sellers table**
 
-Products Table
 | Column | Type | Meaning |
 |---|---|---|
-product_id	text	Id of the product
-product_category_name	text	Product category in Portuguese
-product_name_lenght	number	Characters in the product name
-product_description_lenght	number	Characters in the product description
-product_photos_qty	number	Number of published photos
-product_weight_g	number	Weight in grams
-product_length_cm	number	Length in cm
-product_height_cm	number	Height in cm
-product_width_cm	number	Width in cm
+| `seller_id` | text | Id of the seller |
+| `seller_zip_code_prefix` | number | First 5 digits of the seller's zip code |
+| `seller_city` | text | Seller's city |
+| `seller_state` | text | Two-letter state code |
 
-sellers Table
+**Category translation table**
+
 | Column | Type | Meaning |
 |---|---|---|
-seller_id	text	Id of the seller
-seller_zip_code_prefix	number	First 5 digits of zip code
-seller_city	text	Seller’s city
-seller_state	text	Two-letter state code
+| `product_category_name` | text | Category name in Portuguese |
+| `product_category_name_english` | text | Category name in English |
+
+The full Olist dataset also has payments, reviews, and geolocation tables, which this project does not use. Review scores are written after delivery, so they cannot be used to predict it. Payments and geolocation were left out to keep the scope on what drives delivery time; real seller-to-customer distance from the geolocation table is the main next step noted on the Conclusion page.
 
 ## Step 2: Joining the Six Tables into One Master Dataset
 Starts from `order_items` and joins `orders`, `customers`, `products`, `category_translation`, and `sellers` via `left_join()`, comparing row counts before and after joining to verify there is no row multiplication.
@@ -144,8 +153,8 @@ kable(
  Joining the six tables keeps `r format(rows_after_join, big.mark = ",")` rows (matching `r format(rows_before_join, big.mark = ",")` rows in `order_items`) across `r ncol(df_master)` columns, confirming zero row inflation during the merges.
 
 
-### Step 3: Auditing Missing Values and Cleaning Rules
-Audits missing values across all columns of `df_master`, fixes column spelling typos, creates `purchase_year_month`, filters out rows missing `delivery_days`, and imputes missing product categories and numeric product dimensions.
+## Step 3: Auditing Missing Values and Cleaning Rules
+Audits missing values across all columns of `df_master`, fixes column spelling typos, creates `purchase_year_month`, filters out rows missing `delivery_days`, and labels missing product categories as "unknown". Missing numeric product fields are left as they are and filled later, inside the model recipe.
 
 ```{r}
 na_before <- tibble(
@@ -182,40 +191,51 @@ rows_after_target_filter <- nrow(df_master)
 
 df_master <- df_master |>
   mutate(
+    # A missing category becomes its own level, so these items keep their route and timing records
     product_category_name = if_else(is.na(product_category_name), "unknown", product_category_name),
     product_category_name_english = if_else(
       is.na(product_category_name_english),
       product_category_name,
       product_category_name_english
-    ),
-    across(
-      c(
-        product_name_length,
-        product_description_length,
-        product_photos_qty,
-        product_weight_g,
-        product_length_cm,
-        product_height_cm,
-        product_width_cm
-      ),
-      ~ if_else(is.na(.x), median(.x, na.rm = TRUE), .x)
     )
   )
+
+# Numeric product fields that can still be missing. They are NOT filled here: a median computed
+# on the full dataset would use the future test rows, so the fill happens inside the model recipe
+product_num_cols <- c("product_name_length", "product_description_length", "product_photos_qty",
+                      "product_weight_g", "product_length_cm", "product_height_cm", "product_width_cm")
+
+na_after <- tibble(
+  column = names(df_master),
+  missing_count = colSums(is.na(df_master)),
+  missing_pct = round(100 * colSums(is.na(df_master)) / nrow(df_master), 2)
+) |>
+  filter(missing_count > 0) |>
+  arrange(desc(missing_count))
+
+kable(
+  na_after,
+  format.args = list(big.mark = ","),
+  col.names = c("Column Name", "Missing Rows", "Missing Share (%)"),
+  caption = "Columns that still have missing values after cleaning (all numeric product fields)"
+)
+
+n_rows_missing_spec <- sum(!complete.cases(df_master[product_num_cols]))
 ```
 
 ### Summary of Cleaning Decisions (One Sentence per Rule)
 * **Column name & date standardization:** Corrected the raw typos (`product_name_lenght` -> `product_name_length` and `product_description_lenght` -> `product_description_length`) and built `purchase_year_month` so naming is consistent and monthly trends can be tracked cleanly.
 * **Missing target removal:** Removed `r format(missing_del_n, big.mark = ",")` rows (`r round(100 * missing_del_n / rows_initial, 2)`%) missing `delivery_days`—moving from `r format(rows_initial, big.mark = ",")` to `r format(rows_after_target_filter, big.mark = ",")` rows—because records without an observed delivery duration cannot train or evaluate a `delivery_days` model.
 * **Category missingness (`"unknown"`):** Filled missing `product_category_name` and `product_category_name_english` entries with `"unknown"` rather than dropping rows so uncategorized items still contribute shipping, timing, and geographic records.
-* **Numeric product spec imputation (median):** Imputed missing values across the seven numeric product specification columns (`product_name_length`, `product_description_length`, `product_photos_qty`, `product_weight_g`, `product_length_cm`, `product_height_cm`, and `product_width_cm`) using each column's median because product dimensions and counts are skewed and the median resists extreme outliers.
+* **Numeric product fields left missing, filled later:** The seven numeric product specification columns (`product_name_length`, `product_description_length`, `product_photos_qty`, `product_weight_g`, `product_length_cm`, `product_height_cm`, and `product_width_cm`) still have missing values in `r format(n_rows_missing_spec, big.mark = ",")` rows. They are not imputed here. A median calculated on the whole dataset would use information from rows that later become the test set, so the Modeling page fills them with the median of the training rows only, inside the recipe. The exploration pages simply ignore the missing values when they compute summaries.
 
-After cleaning, `r sum(colSums(is.na(df_master)))` missing values remain across all `r ncol(df_master)` columns in `r format(nrow(df_master), big.mark = ",")` rows (`r format(n_distinct(df_master$order_id), big.mark = ",")` unique orders).
+After cleaning, `r format(sum(colSums(is.na(df_master))), big.mark = ",")` missing values remain, all in the numeric product fields listed above, across `r ncol(df_master)` columns and `r format(nrow(df_master), big.mark = ",")` rows (`r format(n_distinct(df_master$order_id), big.mark = ",")` unique orders).
 
 
-### Step 4: Baseline Sanity Checks (Status, Target Summary, Timing, and Geography)
+## Step 4: Baseline Sanity Checks (Status, Target Summary, Timing, and Geography)
 Checks order statuses and cancellation rate, overall `delivery_days` statistics, purchase day/month coverage, and seller-state delivery patterns before moving to exploration.
 
-## 4.1: Order Status and Cancellation Rate
+### 4.1: Order Status and Cancellation Rate
 
 
 ```{r}
@@ -236,7 +256,7 @@ kable(
 ```
 Among rows with a recorded `delivery_days` value, `"canceled"` rows represent only `r status_summary$order_item_rows[status_summary$order_status == "canceled"]` rows (`r status_summary$pct_rows[status_summary$order_status == "canceled"]`% cancellation rate), showing that cancellations are rare once delivery dates are present.
 
-## 4.2: Overall delivery_days Summary
+### 4.2: Overall delivery_days Summary
 
 ```{r}
 overall_del_summary <- df_master |>
@@ -261,7 +281,7 @@ kable(
 Across `r format(overall_del_summary$num_orders, big.mark = ",")` orders, `delivery_days` has a mean of `r round(overall_del_summary$avg_days, 2)` days and a median of `r round(overall_del_summary$median_days, 2)` days (ranging from `r round(overall_del_summary$min_days, 1)` to `r round(overall_del_summary$max_days, 1)` days, SD = `r round(overall_del_summary$sd_days, 2)`), showing right skew from long tail deliveries.
 
 
-## 4.3: Order Volume and Delivery Time by Day of Week and Purchase Span
+### 4.3: Order Volume and Delivery Time by Day of Week and Purchase Span
 
 ```{r}
 weekday_summary <- df_master |>
@@ -300,7 +320,7 @@ The cleaned data spans `r date_range_summary$min_month` to `r date_range_summary
 
 
 
-## 4.4: Delivery Performance by Seller State
+### 4.4: Delivery Performance by Seller State
 
 ```{r}
 seller_state_summary <- df_master |>
@@ -328,7 +348,7 @@ kable(
 Seller fulfillment is heavily concentrated in `SP` (`r format(seller_state_summary$num_orders[seller_state_summary$seller_state == "SP"], big.mark = ",")` orders), while states with slower averages such as `AM` (`r round(seller_state_summary$avg_days[seller_state_summary$seller_state == "AM"], 1)` mean days) represent small order counts (`r seller_state_summary$num_orders[seller_state_summary$seller_state == "AM"]` orders)—meaning state-level averages on tiny sample sizes need careful interpretation when modeling.
 
 ## Step 5: Saving the Cleaned Dataset and Next Step
-Saves the cleaned `df_master` dataset to `data/df_master_clean.rds` so downstream pages load a consistent, validated dataset.
+Saves the cleaned `df_master` dataset to `data/df_master_clean.rds` so downstream pages load a consistent, validated dataset. The numeric product fields are still unfilled at this point.
 
 ```{r}
 #| include: false

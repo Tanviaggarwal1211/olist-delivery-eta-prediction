@@ -44,7 +44,7 @@ Olist is a Brazilian online marketplace that connects small sellers to customers
 
 **Data** (sources and cleaning) · **Exploration** (what drives delivery time) · **Modeling** (features, split, models) · **Conclusion** (what to expect by route, recommendations, limits)
 
-*Limits:* delivered orders only, partial years at both ends, and patterns rather than causes.
+*Limits:* orders with a recorded delivery date only, partial years at both ends, and patterns rather than causes.
 
 ## About the analyst
 

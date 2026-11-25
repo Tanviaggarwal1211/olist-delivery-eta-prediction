@@ -321,7 +321,7 @@ recipe_tbl <- tibble(
 kable(recipe_tbl, caption = "The three recipes")
 ```
 
-Every recipe applies the same preprocessing: unseen category levels are handled with `step_novel()`, product categories below 1% of rows are grouped (only in recipes that include `category`), categorical variables are dummy-encoded, constant and redundant columns are removed, missing numeric values are imputed with the median, and numeric predictors are standardized. All of it is learned from the training data inside a `workflow`, never from the test set.
+Every recipe applies the same preprocessing: unseen category levels are handled with `step_novel()`, product categories below 1% of rows are grouped (only in recipes that include `category`), categorical variables are dummy-encoded, constant and redundant columns are removed, missing numeric product fields (left unfilled on the Data page) are imputed with the median of the training rows only, and numeric predictors are standardized. All of it is learned from the training data inside a `workflow`, never from the test set.
 
 ## Step 6: Benchmarks, models, and tuning
 
@@ -414,6 +414,7 @@ if (file.exists(cache_file)) {
                      data = train) |>
     step_other(all_nominal_predictors(), threshold = 0.02) |>
     step_dummy(all_nominal_predictors()) |>
+    step_impute_median(all_numeric_predictors()) |>
     step_normalize(all_numeric_predictors())
   fit_orig <- fit_wf(rec_orig, glmnet_spec(0.1, 0), train)
   bench_orig <- score_fit(fit_orig) |>
@@ -549,6 +550,11 @@ r3_rmse_range <- results_all |>
   filter(recipe == r3, .metric == "rmse", model %in% c("Linear Regression", "Ridge", "Lasso")) |>
   pull(.estimate) |> range()
 
+# Settings the validation set picked, used to check whether any sit at the edge of the search grid
+tree_settings <- results_wide |> filter(model == "Decision Tree") |> pull(settings)
+tree_at_edge  <- all(tree_settings == "depth=12, min_n=60")
+ridge_r3_set  <- results_wide |> filter(recipe == r3, model == "Ridge") |> pull(settings)
+
 tree_r3_mae <- get_metric(r3, "Decision Tree", "mae")
 tree_r3_rmse <- get_metric(r3, "Decision Tree", "rmse")
 lin_r3_rmse <- get_metric(r3, "Linear Regression", "rmse")
@@ -556,9 +562,9 @@ lin_r3_rmse <- get_metric(r3, "Linear Regression", "rmse")
 
 ### Key takeaways from the model comparison
 
-1. **Best configuration:** `r best_row$model` on `r best_row$recipe`, with a test MAE of `r round(best_row$mae, 2)` days, RMSE of `r round(best_row$rmse, 2)` days, and R² of `r round(best_row$rsq_trad, 2)`. In plain terms, using only information available at checkout, the model explains about `r round(100 * best_row$rsq_trad)`% of the variation in delivery time, with a typical miss of about `r round(best_row$mae, 1)` days.
+1. **Best configuration:** `r best_row$model` on `r best_row$recipe`, with a test MAE of `r round(best_row$mae, 2)` days, RMSE of `r round(best_row$rmse, 2)` days, and R² of `r round(best_row$rsq_trad, 2)`. In plain terms, using only information available at or shortly after checkout, the model explains about `r round(100 * best_row$rsq_trad)`% of the variation in delivery time, with a typical miss of about `r round(best_row$mae, 1)` days.
 2. **Improvement over the benchmarks:** MAE is `r round(100 * (1 - best_row$mae / naive_mae))`% lower than always predicting the average (`r round(naive_mae, 2)` days), and `r round(100 * (1 - best_row$mae / draft_mae))`% lower than the first-draft ridge (`r round(draft_mae, 2)` days; R² `r round(draft_r2, 2)`) on the same grouped split.
-3. **Features matter more than model choice.** For linear regression, adding product and order features (R1 to R2) lowers MAE from `r round(lm_r1_mae, 2)` to `r round(lm_r2_mae, 2)` days. Adding Olist's own estimate (R2 to R3) lowers it only to `r round(lm_r3_mae, 2)` days. That estimate is weak on its own (R² of `r round(olist_r2, 2)`), and most of what it knows about the route is already captured by the state and region features.
+3. **Features matter more than model choice.** For linear regression, adding product and order features (R1 to R2) lowers MAE from `r round(lm_r1_mae, 2)` to `r round(lm_r2_mae, 2)` days. Adding Olist's own estimate (R2 to R3) lowers it only to `r round(lm_r3_mae, 2)` days. That estimate is weak on its own (R² of `r round(olist_r2, 2)`), and its route information is largely redundant with the state and region features already in the model.
 4. **Regularization made almost no difference.** In Recipe 3, linear regression, ridge, and lasso have RMSEs between `r round(r3_rmse_range[1], 2)` and `r round(r3_rmse_range[2], 2)` days. With about `r format(nrow(train), big.mark = ",")` training rows and a modest number of predictors, there is little overfitting for a penalty to fix. Differences this small are within the noise of a single test split.
 5. **The tree is close to the linear models, not far ahead.** In Recipe 3 the decision tree's MAE is `r round(tree_r3_mae, 2)` days against `r round(lm_r3_mae, 2)` for linear regression, a gap of `r round(abs(tree_r3_mae - lm_r3_mae), 2)` days. Its RMSE (`r round(tree_r3_rmse, 2)`) is `r if (tree_r3_rmse > lin_r3_rmse) "slightly worse" else "slightly better"` than linear regression's (`r round(lin_r3_rmse, 2)`), which suggests the tree does not handle the longest delays any better.
 6. **RMSE is much larger than MAE** (`r round(best_row$rmse, 1)` vs `r round(best_row$mae, 1)` days): most orders are predicted well, but a minority of very late orders produce large errors. The diagnostics below look at this directly.
@@ -630,7 +636,8 @@ state_err <- test_preds |>
 ggplot(state_err, aes(x = mae, y = reorder(customer_state, mae))) +
   geom_col(fill = "#2b8cbe") +
   labs(
-    title = "Prediction error is largest for remote destination states",
+    title = paste0("Prediction error is largest for ", state_err$customer_state[1], " and smallest for ",
+                   state_err$customer_state[nrow(state_err)], " (states with 200+ test items)"),
     x = "Test MAE (days)", y = "Customer state"
   ) +
   theme_minimal()
@@ -643,13 +650,14 @@ under_10 <- mean(test_preds$residual > 10)
 over_10  <- mean(test_preds$residual < -10)
 within_5 <- band_tbl$share[band_tbl$window_days == 5]
 within_10 <- band_tbl$share[band_tbl$window_days == 10]
+within_2  <- band_tbl$share[band_tbl$window_days == 2]
 worst_state <- state_err$customer_state[1]
 best_state  <- state_err$customer_state[nrow(state_err)]
 ```
 
 ### Key takeaways from the diagnostics
 
-- **Most predictions are close.** About `r scales::percent(within_5, accuracy = 1)` of test orders land within 5 days of the prediction, and `r scales::percent(within_10, accuracy = 1)` within 10 days.
+- **Most predictions are close, few are exact.** About `r scales::percent(within_5, accuracy = 1)` of test orders land within 5 days of the prediction and `r scales::percent(within_10, accuracy = 1)` within 10 days, but only `r scales::percent(within_2, accuracy = 1)` land within 2 days. The model locates the typical delivery window, not the exact day.
 - **The misses are lopsided.** The model under-predicts by more than 10 days on `r scales::percent(under_10, accuracy = 0.1)` of orders, but over-predicts by more than 10 days on only `r scales::percent(over_10, accuracy = 0.1)`. Because the model predicts a typical value for a right-skewed target, the very slow orders are the ones it misses.
 - **Error depends on where the order goes.** Among states with enough test orders, MAE is highest for `r worst_state` and lowest for `r best_state`.
 - **Practical implication:** a single predicted number is a good guide for typical orders, but it should be paired with a buffer for long routes and for the slow months, instead of being promised to the customer as exact.
@@ -686,7 +694,7 @@ ggplot(top_coefs, aes(x = estimate, y = reorder(term, estimate), fill = directio
   theme(legend.position = "bottom")
 ```
 
-The lasso kept `r n_kept` of `r n_total` encoded predictors.
+The lasso kept `r n_kept` of `r n_total` encoded predictors, so it removed almost nothing. That fits the earlier finding that regularization made little difference.
 
 ### Decision tree importance, grouped by original feature
 
@@ -734,6 +742,10 @@ imp_tbl |>
 #| label: importance-values
 #| include: false
 top3 <- imp_tbl |> slice_head(n = 3)
+# Route features: states, same-state and same-region flags, and the zip-code regions
+route_feats <- c("customer_state", "seller_state", "same_state", "same_region",
+                 "customer_zip_region", "seller_zip_region")
+route_share <- imp_tbl |> filter(feature %in% route_feats) |> summarise(s = sum(share)) |> pull(s)
 timing_share <- imp_tbl |>
   filter(feature %in% c("purchase_month", "purchase_year", "purchase_weekday")) |>
   summarise(s = sum(share)) |> pull(s)
@@ -741,8 +753,8 @@ timing_share <- imp_tbl |>
 
 ### Key takeaways on drivers
 
-- **Route features dominate.** The three most important feature groups in the tree are `r top3$feature[1]` (`r scales::percent(top3$share[1], accuracy = 1)`), `r top3$feature[2]` (`r scales::percent(top3$share[2], accuracy = 1)`), and `r top3$feature[3]` (`r scales::percent(top3$share[3], accuracy = 1)`). Where an item travels from and to is the strongest driver of delivery time.
-- **Purchase timing contributes a smaller share** (`r scales::percent(timing_share, accuracy = 1)` for year, month, and weekday combined), consistent with the exploration page's finding that purchase timing barely changes delivery outcomes. The months that do show up match the slow months seen in the exploration.
+- **Route features carry the most importance.** Customer and seller state, the same-state and same-region flags, and the zip regions together account for `r scales::percent(route_share, accuracy = 1)` of the tree's importance. The three most important single features are `r top3$feature[1]` (`r scales::percent(top3$share[1], accuracy = 1)`), `r top3$feature[2]` (`r scales::percent(top3$share[2], accuracy = 1)`), and `r top3$feature[3]` (`r scales::percent(top3$share[3], accuracy = 1)`); `estimated_days` is Olist's own estimate, which itself partly reflects the route.
+- **Purchase timing contributes a smaller share** (`r scales::percent(timing_share, accuracy = 1)` for year, month, and weekday combined), well below route but not zero. The Exploration page found that purchase month moves average delivery time by several days while weekday and time of day barely matter. This importance score cannot show which months matter, so we do not name them here.
 - **`estimated_days` ranks high in importance but added little to accuracy.** The tree uses it often, but because route features carry much of the same information, removing it costs little. Importance measures how much a feature is *used*; the recipe comparison measures how much accuracy it *adds*.
 - **Caution:** correlated features share credit in tree importance, and neither the lasso nor the tree shows causation. These results describe what the models rely on to predict, not what causes a delay.
 
@@ -766,10 +778,10 @@ write_rds(
 
 **What we found**
 
-- Delivery time on Olist is driven mainly by **route** (seller and customer location), with product and order characteristics adding a smaller amount and purchase timing adding little.
+- Delivery time on Olist is driven mainly by **route** (seller and customer location), with product and order characteristics adding a smaller amount and purchase timing less than route.
 - The best model (`r best_row$model`, `r best_row$recipe`) predicts delivery time to within about `r round(best_row$mae, 1)` days on average and explains about `r round(100 * best_row$rsq_trad)`% of the variation, improving MAE by `r round(100 * (1 - best_row$mae / draft_mae))`% over the first draft and `r round(100 * (1 - best_row$mae / naive_mae))`% over the naive average.
 - Model choice mattered far less than feature choice: ridge, lasso, and linear regression perform almost identically, and the decision tree is only slightly different.
-- Olist's own estimate carries limited extra information once route features are present, which supports the earlier finding that the estimates are conservative rather than precise.
+- Olist's own estimate is a weak predictor on its own (R² `r round(olist_r2, 2)`) and lowers MAE by only about `r round(lm_r2_mae - lm_r3_mae, 2)` days once route and product features are in the model, so the model gains little from it.
 
 **How far to trust it**
 
@@ -777,10 +789,18 @@ write_rds(
 - **Similar orders, not future orders.** The split is random across 2016-2018, so it tests performance on orders like those already seen. It does not test how the model would perform after a carrier change, a strike, or a seasonal shift.
 - **Tail delays are still hard.** The model tends to under-predict the slowest orders, so a point estimate should be paired with a delivery window.
 - **Order-item grain.** `delivery_days` is an order-level duration repeated across the items of an order, so multi-item orders carry slightly more weight in the metrics.
-- **Settings chosen on one validation slice.** Tuning used a single validation set. If a chosen setting sits at the edge of its search grid (see the Settings column), a wider search might change results slightly.
+- **Settings chosen on one validation slice.** Tuning used a single validation set. `r if (tree_at_edge) "On every recipe the tree chose the largest depth and node size on offer (depth 12, min_n 60), so a wider search might lower its error somewhat and its small lead over the linear models should be treated as provisional." else "The tree settings were not at the edge of the search grid."` In Recipe 3 the ridge chose `r ridge_r3_set`, which `r if (ridge_r3_set == "penalty=1") "is the strongest penalty offered" else "is inside the search grid"`.
 - **Interpretation of coefficients.** Standardized lasso coefficients show direction and relative size, not causal effects.
 - **Unmeasured factors.** Carrier performance, weather, seller behavior, and true seller-to-customer distance are not in the data. Zip-code region is only a coarse stand-in for distance.
 
 **What could improve it**
 
 Adding real seller-to-customer distance (from Olist's geolocation table) is the most promising next step. Non-linear ensemble models or a log-transformed target are further options that were outside the scope of this analysis.
+
+```{r}
+#| label: session-info
+# Software versions used to produce these results
+sessionInfo()
+```
+
+**AI-use statement.** I used Claude (Anthropic) as a coding and writing assistant. I reviewed and ran the code and take responsibility for the analysis and its conclusions.
